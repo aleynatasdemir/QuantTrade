@@ -1,15 +1,16 @@
 # Core dependencies
-evdspy>=2.0.0
-pandas>=2.0.0
-python-dotenv>=1.0.0
-toml>=0.10.2
+evdspy
+pandas
+python-dotenv
+toml
+pykap
 
 # Data processing
-numpy>=1.24.0
+numpy
 
 # Utilities
-requests>=2.31.0
+requests
 
 # Development (optional)
-jupyter>=1.0.0
-matplotlib>=3.7.0
+jupyter
+matplotlib
