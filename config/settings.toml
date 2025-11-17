@@ -1,0 +1,40 @@
+# QuantTrade Configuration File
+# Bu dosya projenin genel ayarlarını içerir
+
+[project]
+name = "QuantTrade"
+version = "0.1.0"
+description = "ML tabanlı kantitatif alım-satım sistemi - BIST100"
+
+[evds]
+# EVDS API veri çekme tarihleri (YYYY-MM-DD formatında)
+start_date = "2020-01-01"
+end_date = "2024-12-31"
+
+# EVDS Seri Kodları
+# Her anahtar değişken adı, değer ise EVDS seri kodudur
+[evds.series]
+# Döviz kurları
+usd_try = "TP.DK.USD.A.YTL"  # USD/TRY
+eur_try = "TP.DK.EUR.A.YTL"  # EUR/TRY
+
+# Borsa endeksi
+bist100 = "TP.XU100"  # BIST100 endeksi
+
+# Para arzı
+m2 = "TP.M2.YTL"  # M2 para arzı
+
+# Enflasyon
+cpi = "TP.FG.J0"  # TÜFE (Tüketici Fiyat Endeksi)
+
+# Uluslararası endeks (EVDS'te yoksa boş bırakılabilir)
+sp500 = ""  # S&P500 (EVDS'te bulunmayabilir, alternatif kaynak gerekebilir)
+
+[data]
+# Veri kaydetme ayarları
+output_format = "csv"
+date_format = "%Y-%m-%d"
+
+[logging]
+level = "INFO"
+format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
