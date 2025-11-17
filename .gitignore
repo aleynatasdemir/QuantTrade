@@ -57,3 +57,7 @@ Thumbs.db
 *.parquet
 *.pkl
 *.joblib
+
+# Veri dosyaları - push yapılmayacak
+data/raw/ohlcv/
+data/raw/macro/*.csv
