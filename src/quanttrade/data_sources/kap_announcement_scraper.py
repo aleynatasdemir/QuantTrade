@@ -172,7 +172,7 @@ if __name__ == "__main__":
             reports = fetch_financial_reports(start_date, end_date, oid)
             
             if reports:
-                csv_file = OUTPUT_DIR / f"{symbol}.csv"
+                csv_file = OUTPUT_DIR / f"{symbol}_announcements.csv"
                 
                 with open(csv_file, "w", newline="", encoding="utf-8") as f:
                     writer = csv.DictWriter(f, fieldnames=["index", "publishDate", "ruleType", "summary", "url"])
