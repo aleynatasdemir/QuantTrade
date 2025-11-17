@@ -1,6 +1,8 @@
 import requests
 import json
 import csv
+import sys
+import time
 from pathlib import Path
 
 BASE_URL = "https://www.kap.org.tr"
@@ -9,6 +11,12 @@ BASE_URL = "https://www.kap.org.tr"
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 OUTPUT_DIR = PROJECT_ROOT / "data" / "raw" / "announcements"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
+# Config ve mapping dosyaları
+sys.path.insert(0, str(PROJECT_ROOT))
+from src.quanttrade.config import get_stock_symbols, get_stock_date_range
+
+MAPPING_FILE = PROJECT_ROOT / "config" / "kap_symbols_oids_mapping.json"
 
 session = requests.Session()
 
@@ -52,7 +60,7 @@ def fetch_financial_reports(from_date, to_date, oid):
         "fromDate": from_date,
         "toDate": to_date,
         "memberType": "IGS",
-        "disclosureClass": "",
+        "disclosureClass": "FR",  # Finansal Rapor
         "mkkMemberOidList": [oid],
         "bdkMemberOidList": [],
         "inactiveMkkMemberOidList": [],
@@ -105,6 +113,7 @@ def fetch_financial_reports(from_date, to_date, oid):
         results.append({
             "index": item.get("disclosureIndex"),
             "publishDate": item.get("publishDate"),
+            "ruleType": item.get("ruleType"),  # 3 Aylık, 6 Aylık, 9 Aylık, Yıllık
             "summary": item.get("summary"),
             "url": f"https://www.kap.org.tr/tr/Bildirim/{item.get('disclosureIndex')}"
         })
@@ -112,22 +121,84 @@ def fetch_financial_reports(from_date, to_date, oid):
     return results
 
 
+def load_symbol_oid_mapping():
+    """Config'ten semboller ve mapping'ten OID'leri yükle"""
+    # Config'ten semboller
+    symbols = get_stock_symbols()
+    
+    # Sabit tarih aralığı - 2024
+    start_date = "2024-01-01"
+    end_date = "2024-12-31"
+    
+    # Mapping dosyasından OID'ler
+    with open(MAPPING_FILE, "r", encoding="utf-8") as f:
+        mapping_data = json.load(f)
+    
+    companies = mapping_data.get("companies", {})
+    
+    # Eşleştir
+    symbol_oid_map = {}
+    for symbol in symbols:
+        symbol_upper = symbol.upper()
+        if symbol_upper in companies:
+            symbol_oid_map[symbol_upper] = companies[symbol_upper]["oid"]
+    
+    return symbol_oid_map, start_date, end_date
+
+
 # ---- KULLANIM ----
-ACSEL_OID = "4028e4a2420327a4014209c55161144d"
-
-reports = fetch_financial_reports("2024-01-01", "2024-12-31", ACSEL_OID)
-
-print(f"✓ Bulunan finansal rapor: {len(reports)}")
-
-# CSV olarak kaydet
-if reports:
-    csv_file = OUTPUT_DIR / "acsel_finansal_raporlar.csv"
+if __name__ == "__main__":
+    print("=" * 70)
+    print("KAP ANNOUNCEMENT SCRAPER")
+    print("=" * 70)
     
-    with open(csv_file, "w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=["index", "publishDate", "summary", "url"])
-        writer.writeheader()
-        writer.writerows(reports)
+    # Mapping yükle
+    print("\n📋 Sembol-OID eşleştirmesi yükleniyor...")
+    symbol_oid_map, start_date, end_date = load_symbol_oid_mapping()
     
-    print(f"✓ CSV kaydedildi: {csv_file}")
-else:
-    print("❌ Hiç rapor bulunamadı")
+    print(f"   ✓ {len(symbol_oid_map)} sembol eşleştirildi")
+    print(f"   ✓ Tarih aralığı: {start_date} - {end_date}")
+    
+    # Her sembol için anons çek
+    print("\n🔍 Anonslar çekiliyor...\n")
+    
+    success_count = 0
+    fail_count = 0
+    
+    for symbol, oid in symbol_oid_map.items():
+        print(f"   {symbol}...", end=" ", flush=True)
+        
+        try:
+            reports = fetch_financial_reports(start_date, end_date, oid)
+            
+            if reports:
+                csv_file = OUTPUT_DIR / f"{symbol}.csv"
+                
+                with open(csv_file, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=["index", "publishDate", "ruleType", "summary", "url"])
+                    writer.writeheader()
+                    writer.writerows(reports)
+                
+                print(f"✓ {len(reports)} rapor")
+                success_count += 1
+            else:
+                print("⚠ Rapor yok")
+                fail_count += 1
+            
+            # Rate limiting
+            time.sleep(2)
+            
+        except Exception as e:
+            print(f"❌ Hata: {e}")
+            fail_count += 1
+            time.sleep(3)
+    
+    # Özet
+    print("\n" + "=" * 70)
+    print("ÖZET")
+    print("=" * 70)
+    print(f"Toplam sembol: {len(symbol_oid_map)}")
+    print(f"Başarılı: {success_count}")
+    print(f"Başarısız/Boş: {fail_count}")
+    print(f"Klasör: {OUTPUT_DIR}")
+    print("=" * 70)
