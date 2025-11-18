@@ -126,10 +126,6 @@ def load_symbol_oid_mapping():
     # Config'ten semboller
     symbols = get_stock_symbols()
     
-    # Sabit tarih aralığı - 2024
-    start_date = "2024-01-01"
-    end_date = "2024-12-31"
-    
     # Mapping dosyasından OID'ler
     with open(MAPPING_FILE, "r", encoding="utf-8") as f:
         mapping_data = json.load(f)
@@ -143,7 +139,15 @@ def load_symbol_oid_mapping():
         if symbol_upper in companies:
             symbol_oid_map[symbol_upper] = companies[symbol_upper]["oid"]
     
-    return symbol_oid_map, start_date, end_date
+    return symbol_oid_map
+
+
+def generate_year_ranges(start_year, end_year):
+    """Yıl aralıklarını oluştur"""
+    year_ranges = []
+    for year in range(start_year, end_year + 1):
+        year_ranges.append((f"{year}-01-01", f"{year}-12-31"))
+    return year_ranges
 
 
 # ---- KULLANIM ----
@@ -152,12 +156,20 @@ if __name__ == "__main__":
     print("KAP ANNOUNCEMENT SCRAPER")
     print("=" * 70)
     
+    # Tarih aralığı ayarla
+    START_YEAR = 2020
+    END_YEAR = 2025
+    
     # Mapping yükle
     print("\n📋 Sembol-OID eşleştirmesi yükleniyor...")
-    symbol_oid_map, start_date, end_date = load_symbol_oid_mapping()
+    symbol_oid_map = load_symbol_oid_mapping()
     
     print(f"   ✓ {len(symbol_oid_map)} sembol eşleştirildi")
-    print(f"   ✓ Tarih aralığı: {start_date} - {end_date}")
+    print(f"   ✓ Tarih aralığı: {START_YEAR} - {END_YEAR}")
+    
+    # Yıl aralıklarını oluştur
+    year_ranges = generate_year_ranges(START_YEAR, END_YEAR)
+    print(f"   ✓ {len(year_ranges)} yıl aralığı oluşturuldu")
     
     # Her sembol için anons çek
     print("\n🔍 Anonslar çekiliyor...\n")
@@ -168,24 +180,30 @@ if __name__ == "__main__":
     for symbol, oid in symbol_oid_map.items():
         print(f"   {symbol}...", end=" ", flush=True)
         
+        all_reports = []  # Tüm yılların raporlarını topla
+        
         try:
-            reports = fetch_financial_reports(start_date, end_date, oid)
+            # Her yıl için ayrı ayrı çek
+            for start_date, end_date in year_ranges:
+                reports = fetch_financial_reports(start_date, end_date, oid)
+                all_reports.extend(reports)
+                time.sleep(1)  # Yıllar arası kısa bekleme
             
-            if reports:
+            if all_reports:
                 csv_file = OUTPUT_DIR / f"{symbol}_announcements.csv"
                 
                 with open(csv_file, "w", newline="", encoding="utf-8") as f:
                     writer = csv.DictWriter(f, fieldnames=["index", "publishDate", "ruleType", "summary", "url"])
                     writer.writeheader()
-                    writer.writerows(reports)
+                    writer.writerows(all_reports)
                 
-                print(f"✓ {len(reports)} rapor")
+                print(f"✓ {len(all_reports)} rapor")
                 success_count += 1
             else:
                 print("⚠ Rapor yok")
                 fail_count += 1
             
-            # Rate limiting
+            # Rate limiting - semboller arası
             time.sleep(2)
             
         except Exception as e:
@@ -200,5 +218,6 @@ if __name__ == "__main__":
     print(f"Toplam sembol: {len(symbol_oid_map)}")
     print(f"Başarılı: {success_count}")
     print(f"Başarısız/Boş: {fail_count}")
+    print(f"Yıl aralığı: {START_YEAR}-{END_YEAR} ({len(year_ranges)} yıl)")
     print(f"Klasör: {OUTPUT_DIR}")
     print("=" * 70)

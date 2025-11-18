@@ -40,7 +40,7 @@ us_cli = "TP.OECDONCU.USA"  # ABD Kompozit Öncü Göstergeler Endeksi (OECD)
 [stocks]
 # BIST hisse senetleri listesi
 # Bu liste hem OHLCV hem de finansal veri çekimi için kullanılır
-start_date = "2025-01-01"
+start_date = "2020-01-01"
 end_date = "2025-11-17"
 
 # Ana BIST100 hisseleri
