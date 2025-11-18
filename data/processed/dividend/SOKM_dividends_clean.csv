@@ -1,0 +1,5 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+SOKM,2024-10-01,1.75,0.8428,84.28,75.85,500000000.0,8.0
+SOKM,2024-07-01,2.67,1.6855,168.55,151.7,1000000000.0,16.0
+SOKM,2023-08-22,0.97,0.5057,50.57,45.51,300000000.0,4.0
+SOKM,2021-07-01,1.11,0.13,13.0,11.05,79565645.0,29.0

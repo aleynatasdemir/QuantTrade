@@ -1,0 +1,4 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+AKSEN,2024-06-06,2.77,1.3047,130.47,117.42,1600000000.0,20.0
+AKSEN,2023-05-03,2.86,0.8154,81.54,73.39,1000000000.0,18.0
+AKSEN,2022-07-20,2.03,0.5708,57.08,51.37,630000000.0,38.0

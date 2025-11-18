@@ -1,0 +1,4 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+ARCLK,2023-09-25,1.7,2.6638,266.38,239.74,1800000000.0,29.0
+ARCLK,2022-03-28,3.84,2.2198,221.98,199.78,1500000000.0,49.0
+ARCLK,2021-03-29,6.39,2.2198,221.98,188.69,1500000000.0,53.0

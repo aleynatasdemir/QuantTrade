@@ -1,0 +1,4 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+VESTL,2021-11-30,7.57,2.3458,234.58,199.39,786911317.0,44.0
+VESTL,2021-09-30,8.12,2.3458,234.58,199.39,786911317.0,44.0
+VESTL,2021-07-30,7.28,2.3458,234.58,199.39,786911317.0,44.0
