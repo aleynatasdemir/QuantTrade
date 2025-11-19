@@ -194,15 +194,14 @@ class SplitCleaner:
                 axis=1
             )
             
-            # Sadece gerçek split'leri tut (nakit temettü hariç)
-            # split_factor != 1.0 olanlar
+            # Geçersiz split_factor'ları sil (None olanlar)
+            # NOT: split_factor=1.0 (nakit temettü) de tutuyoruz, çünkü kayıt amaçlı önemli
             before_count = len(df)
-            df = df[df['split_factor'] != 1.0].copy()
             df = df[df['split_factor'].notna()].copy()
             after_count = len(df)
             
             if before_count > after_count:
-                logger.debug(f"{symbol}: {before_count - after_count} adet nakit temettü/geçersiz kayıt filtrelendi")
+                logger.debug(f"{symbol}: {before_count - after_count} adet geçersiz kayıt filtrelendi")
             
             if df.empty:
                 logger.info(f"{symbol}: Hiç split bulunamadı (sadece nakit temettü var)")

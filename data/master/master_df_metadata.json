@@ -78,6 +78,7 @@
     "fund_operating_profit",
     "fund_ebitda",
     "fund_gross_profit",
+    "fund_depreciation",
     "fund_total_debt",
     "dataset_split"
   ],

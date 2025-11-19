@@ -254,16 +254,13 @@ class MacroFeatureEngineer:
         if fill_method:
             logger.info(f"Filling missing values using method: {fill_method}")
             
-            # Forward fill for base economic indicators
-            base_cols = ['usd_try', 'eur_try', 'bist100', 'm2', 'cpi', 'tcmb_repo', 
-                        'us_cli', 'us_cpi']
-            
-            for col in base_cols:
-                if col in result.columns:
+            # Forward fill for ALL columns (base economic indicators AND derivatives)
+            # This ensures monthly/weekly data is carried forward to daily frequency
+            for col in result.columns:
+                if col != 'date':
                     result[col] = result[col].fillna(method=fill_method)
             
-            # Derivative features will naturally have NaN for initial periods
-            # This is expected and correct behavior
+            logger.info(f"✓ Forward fill applied to all {len(result.columns)-1} data columns")
         
         # ===================================================================
         # Reorder columns for better readability
