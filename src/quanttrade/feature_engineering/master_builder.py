@@ -21,7 +21,7 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 import logging
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional
 import warnings
 
 warnings.filterwarnings('ignore')
@@ -70,6 +70,10 @@ class MasterDataFrameBuilder:
         self.id_columns = ['symbol', 'date']
         self.target_columns = []
         self.feature_columns = []
+    
+    # ====================================================
+    # LOADERS
+    # ====================================================
     
     def load_macro_features(self) -> pd.DataFrame:
         """
@@ -158,6 +162,10 @@ class MasterDataFrameBuilder:
         
         return df
     
+    # ====================================================
+    # MERGE HELPERS
+    # ====================================================
+    
     def merge_fundamental_with_asof(
         self,
         price_df: pd.DataFrame,
@@ -180,8 +188,6 @@ class MasterDataFrameBuilder:
         price_df = price_df.sort_values('date').reset_index(drop=True)
         fundamental_df = fundamental_df.sort_values('announcement_date').reset_index(drop=True)
         
-        # Use merge_asof to find the most recent fundamental data for each date
-        # direction='backward' means we look for announcement_date <= date
         merged = pd.merge_asof(
             price_df,
             fundamental_df,
@@ -247,6 +253,60 @@ class MasterDataFrameBuilder:
             logger.info(f"  No fundamental features available")
         
         return merged
+    
+    # ====================================================
+    # ALPHA / MARKET FUTURE RETURN
+    # ====================================================
+    
+    def add_market_alpha(
+        self,
+        df: pd.DataFrame,
+        horizon: int = 120
+    ) -> pd.DataFrame:
+        """
+        Add:
+        - market_future_return_{horizon}d (BIST100'e göre)
+        - alpha_{horizon}d = future_return_{horizon}d - market_future_return_{horizon}d
+        """
+        fut_col = f"future_return_{horizon}d"
+        mkt_col = "macro_bist100"
+        mkt_fut_col = f"market_future_return_{horizon}d"
+        alpha_col = f"alpha_{horizon}d"
+        
+        if mkt_col not in df.columns:
+            logger.warning(f"{mkt_col} not found in master_df. Skipping alpha computation.")
+            return df
+        
+        if fut_col not in df.columns:
+            logger.warning(f"{fut_col} not found in master_df. Skipping alpha computation.")
+            return df
+        
+        logger.info(f"\nComputing market future return ({mkt_fut_col}) and alpha ({alpha_col})...")
+        
+        # BIST100 future return date-level (aynı tarih için tüm satırlar aynı değeri alacak)
+        mkt_series = (
+            df
+            .groupby('date')[mkt_col]
+            .first()
+            .sort_index()
+        )
+        
+        mkt_future = mkt_series.shift(-horizon) / mkt_series - 1.0
+        mkt_future = mkt_future.rename(mkt_fut_col).reset_index()
+        
+        # merge back
+        df = df.merge(mkt_future, on='date', how='left')
+        
+        # alpha = hisse future_return - market_future_return
+        df[alpha_col] = df[fut_col] - df[mkt_fut_col]
+        
+        logger.info(f"  Added columns: {mkt_fut_col}, {alpha_col}")
+        
+        return df
+    
+    # ====================================================
+    # MASTER BUILD
+    # ====================================================
     
     def build_master_dataframe(
         self,
@@ -321,6 +381,10 @@ class MasterDataFrameBuilder:
         
         return master_df
     
+    # ====================================================
+    # COLUMN CATEGORIZATION
+    # ====================================================
+    
     def categorize_columns(self, df: pd.DataFrame) -> Dict[str, List[str]]:
         """
         Categorize columns into ID, features, and targets.
@@ -336,16 +400,22 @@ class MasterDataFrameBuilder:
         # ID columns
         id_cols = ['symbol', 'date']
         
-        # Target columns (future-looking variables)
-        target_cols = [col for col in all_columns 
-                      if col.startswith('future_return_') or col.startswith('y_')]
+        # Target columns (future-looking variables, alpha dahil)
+        target_cols = [
+            col for col in all_columns 
+            if col.startswith('future_return_')
+            or col.startswith('y_')
+            or col.startswith('alpha_')
+        ]
         
         # Metadata columns (not features, not targets)
         metadata_cols = ['period', 'announcement_date']
         
         # Feature columns (everything else)
-        feature_cols = [col for col in all_columns 
-                       if col not in id_cols + target_cols + metadata_cols]
+        feature_cols = [
+            col for col in all_columns 
+            if col not in id_cols + target_cols + metadata_cols
+        ]
         
         return {
             'id_columns': id_cols,
@@ -353,6 +423,10 @@ class MasterDataFrameBuilder:
             'target_columns': target_cols,
             'metadata_columns': [col for col in metadata_cols if col in all_columns]
         }
+    
+    # ====================================================
+    # SPLIT / SUMMARY / SAVE
+    # ====================================================
     
     def add_dataset_split(
         self,
@@ -427,8 +501,12 @@ class MasterDataFrameBuilder:
         logger.info(f"\nSymbol Statistics:")
         logger.info(f"  Unique symbols: {df['symbol'].nunique()}")
         symbol_counts = df['symbol'].value_counts()
-        logger.info(f"  Rows per symbol: min={symbol_counts.min()}, "
-                   f"max={symbol_counts.max()}, mean={symbol_counts.mean():.0f}")
+        logger.info(
+            f"  Rows per symbol: "
+            f"min={symbol_counts.min()}, "
+            f"max={symbol_counts.max()}, "
+            f"mean={symbol_counts.mean():.0f}"
+        )
         
         # Column categories
         logger.info(f"\nColumn Categories:")
@@ -510,6 +588,10 @@ class MasterDataFrameBuilder:
         
         return str(output_file)
     
+    # ====================================================
+    # RUN
+    # ====================================================
+    
     def run(
         self,
         min_date: Optional[str] = None,
@@ -533,6 +615,11 @@ class MasterDataFrameBuilder:
         """
         # Build master dataframe
         master_df = self.build_master_dataframe(min_date=min_date, max_date=max_date)
+        
+        # Add market future return + alpha (120d)
+        master_df = self.add_market_alpha(master_df, horizon=120)
+        master_df = self.add_market_alpha(master_df, horizon=60)
+        master_df = self.add_market_alpha(master_df, horizon=90)
         
         # Add dataset split
         if train_end_date and valid_end_date:

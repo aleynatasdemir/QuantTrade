@@ -1,0 +1,8 @@
+symbol,split_date,split_factor,cumulative_split_factor
+ALKA,2020-04-27,1.0,1.0
+ALKA,2021-01-05,1.0,1.0
+ALKA,2021-04-12,1.0,1.0
+ALKA,2022-04-19,1.0,1.0
+ALKA,2022-10-25,3.5,3.5
+ALKA,2023-04-10,1.0,3.5
+ALKA,2024-12-09,4.0,14.0

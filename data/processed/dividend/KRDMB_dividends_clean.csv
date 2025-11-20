@@ -1,0 +1,5 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+KRDMB,2023-11-28,0.54,0.1096,10.96,9.87,13099816.0,11.0
+KRDMB,2023-06-21,0.65,0.1096,10.96,9.87,13099816.0,11.0
+KRDMB,2022-11-28,3.81,0.4386,43.86,39.47,52399266.0,13.0
+KRDMB,2022-06-28,4.26,0.4386,43.86,39.47,52399266.0,13.0

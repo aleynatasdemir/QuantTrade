@@ -9,7 +9,7 @@ description = "ML tabanlı kantitatif alım-satım sistemi - BIST100"
 [evds]
 # EVDS API veri çekme tarihleri (YYYY-MM-DD formatında)
 start_date = "2020-01-01"
-end_date = "2025-11-18"
+end_date = "2025-11-19"
 
 # EVDS Seri Kodları
 # Resmi EVDS Web Servis Kılavuzu (Nisan 2024) standartlarına göre
@@ -49,28 +49,55 @@ end_date = "2025-11-17"
 financial_group = "2"
 
 # Ana BIST100 hisseleri
+# GÜNCELLENMİŞ VE GENİŞLETİLMİŞ HİSSE LİSTESİ (NON-BANK)
+
 symbols = [
-    # Bankacılık
-    "AKBNK", "GARAN", "ISCTR", "VAKBN", "YKBNK", "HALKB",
-    # Holding
-    "KCHOL", "SAHOL", "DOHOL", "THYAO",
-    # Sanayi
-    "ARCLK", "ASELS", "EREGL", "FROTO", "SISE", "TUPRS", "TOASO",
-    # Enerji
-    "AKSEN", "ENKAI", "PETKM",
-    # Teknoloji & İletişim
-    "TTKOM", "TCELL", "LOGO",
-    # Perakende & Tüketim
-    "MGROS", "SOKM", "BIMAS", "VESTL", "ULKER", "AEFES", "CCOLA",
-    # İnşaat & Gayrimenkul
-    "EKGYO", "PGSUS", "TKFEN", "KONTR", "TTRAK",
-    # Madencilik
-    "KOZAL", "KOZAA", "KRDMD",
-    # Havayolu & Taşımacılık
-    "TAVHL", "PGSUS",
+    # --- HOLDİNG & YATIRIM ---
+    "KCHOL", "SAHOL", "DOHOL", "TKFEN", "ALARK", "GSDHO", "AGHOL", "BERA", "NTHOL", "TEKTU",
     
+    # --- SANAYİ & METAL ---
+    "EREGL", "KRDMD", "KRDMA", "KRDMB", "ISDMR", "CEMTS", "SARKY", "BMSCH",
     
+    # --- OTOMOTİV & YAN SANAYİ ---
+    "FROTO", "TOASO", "TTRAK", "OTKAR", "KORDS", "BRISA", "GOODY", "DOAS", "KARSN", "TMSN",
+    
+    # --- ENERJİ (Yenilenebilir & Elektrik) - Modelin seveceği volatilite burada ---
+    "AKSEN", "ENKAI", "ZOREN", "ODAS", "ASTOR", "EUPWR", "SMRTG", "ALFAS", "GWIND", "BIOEN", "AYDEM", "AKENR", "CANTE", "MAGEN", "HUNER",
+    
+    # --- RAFİNERİ & PETROKİMYA ---
+    "TUPRS", "PETKM", "SASA", "HEKTS", "GUBRF", "BAGFS",
+    
+    # --- TEKNOLOJİ & YAZILIM ---
+    "ASELS", "LOGO", "MIATK", "SDTTR", "ARDYZ", "KFEIN", "VBTYZ", "PENTA", "PAPIL", "FONET", "SMART",
+    
+    # --- İLETİŞİM ---
+    "TCELL", "TTKOM",
+    
+    # --- PERAKENDE & GIDA ---
+    "BIMAS", "MGROS", "SOKM", "ULKER", "AEFES", "CCOLA", "MAVI", "BIZIM", "TUKAS", "TATGD", "PETUN", "KCVYG",
+    
+    # --- DAYANIKLI TÜKETİM & ELEKTRONİK ---
+    "ARCLK", "VESTL", "VESBE",
+    
+    # --- HAVAYOLU & ULAŞIM ---
+    "THYAO", "PGSUS", "TAVHL", "CLEBI", "GSDDE", "TLMAN", "TUREX",
+    
+    # --- ÇİMENTO & CAM & TOPRAK ---
+    "SISE", "OYAKC", "AKCNS", "CIMSA", "BUCIM", "NUHCM", "KUTPO",
+    
+    # --- GAYRİMENKUL (GYO) & İNŞAAT ---
+    "EKGYO", "ISGYO", "TRGYO", "AKFGY", "SNGYO", "OZKGY", "HLGYO", "KIZIL",
+    
+    # --- MADENCİLİK ---
+    "KOZAL", "KOZAA", "IPEKE", "PRKME",
+    
+    # --- KAĞIT & AMBALAJ ---
+    "KARTN", "ALKA", "TEZOL",
+    
+    # --- EKSTRALAR (Hacimli Yan Tahtalar) ---
+    "KIMMR", "ORGE", "QUAGR", "KMPUR", "JANTS", "PARSN" ,"INDES",
 ]
+
 
 [data]
 # Veri kaydetme ayarları

@@ -1,0 +1,4 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+ALFAS,2025-09-30,0.35,0.163,16.3,13.86,60000000.0,24.0
+ALFAS,2024-08-14,1.36,0.8152,81.52,73.37,300000000.0,20.0
+ALFAS,2023-05-03,1.12,4.0,400.0,360.0,184000000.0,23.0

@@ -1,0 +1,4 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+TATGD,2022-03-24,2.98,0.335,33.5,30.15,45560000.0,20.0
+TATGD,2021-03-26,2.52,0.25,25.0,21.25,34000000.0,20.0
+TATGD,2020-03-26,3.28,0.2,20.0,17.0,27200000.0,41.0

@@ -60,7 +60,7 @@ logging.info(f"Yıl aralığı: {start_year} -> {end_year}")
 
 # fetch_financials parametreleri
 EXCHANGE = "USD"         # a.py'de USD kullanıyorsun
-FINANCIAL_GROUP = "2"    # Gelir Tablosu (Income Statement)
+FINANCIAL_GROUP = "1"    # Gelir Tablosu (Income Statement)
 
 no_data = []
 

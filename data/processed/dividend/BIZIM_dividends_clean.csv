@@ -1,0 +1,4 @@
+symbol,ex_date,dividend_yield_pct,dividend_per_share,gross_pct,net_pct,total_dividend_tl,payout_ratio_pct
+BIZIM,2023-10-09,1.54,0.8333,83.33,75.0,50000000.0,7.0
+BIZIM,2021-10-08,2.51,0.3207,32.07,27.26,19242522.0,50.0
+BIZIM,2020-10-05,0.87,0.1378,13.78,11.71,8268882.0,25.0
