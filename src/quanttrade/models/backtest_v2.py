@@ -39,13 +39,13 @@ from typing import Dict, Optional, List
 # ==========================
 
 DATA_PATH = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_90d"
-BACKTEST_DIR = "backtest_results_alpha_90d"
+RESULTS_DIR = "model_results_alpha_120d"
+BACKTEST_DIR = "backtest_results_alpha_120d"
 
 SYMBOL_COL = "symbol"
 DATE_COL = "date"
 
-HORIZON = 90
+HORIZON = 120
 FUT_RET_COL = f"future_return_{HORIZON}d"
 MARKET_FUT_RET_COL = f"market_future_return_{HORIZON}d"
 MARKET_RET_COL = "macro_bist100_roc_5d"   # neutralization için
@@ -144,8 +144,8 @@ def main():
     os.makedirs(BACKTEST_DIR, exist_ok=True)
 
     print(">> Son ALPHA modelini ve neutralizer'ı buluyorum...")
-    model_path = get_latest(os.path.join(RESULTS_DIR, "catboost_alpha90d_*.cbm"))
-    neutralizer_path = get_latest(os.path.join(RESULTS_DIR, "neutralizer_alpha90d_*.pkl"))
+    model_path = get_latest(os.path.join(RESULTS_DIR, "catboost_alpha120d_*.cbm"))
+    neutralizer_path = get_latest(os.path.join(RESULTS_DIR, "neutralizer_alpha120d_*.pkl"))
 
     print(f"   Model      : {model_path}")
     print(f"   Neutralizer: {neutralizer_path}")
