@@ -74,7 +74,7 @@ class FeatureNeutralizer(BaseEstimator, TransformerMixin):
 # ======================================================
 
 DATA_PATH = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_60d"
+RESULTS_DIR = "model_results_alpha_90d"
 SIGNALS_DIR = "signals"
 
 SYMBOL_COL = "symbol"
@@ -107,8 +107,8 @@ def main():
     os.makedirs(SIGNALS_DIR, exist_ok=True)
 
     print("\n>> En son ALPHA modelini buluyorum...")
-    model_path = get_latest(os.path.join(RESULTS_DIR, "catboost_alpha60d_*.cbm"))
-    neutralizer_path = get_latest(os.path.join(RESULTS_DIR, "neutralizer_alpha60d_*.pkl"))
+    model_path = get_latest(os.path.join(RESULTS_DIR, "catboost_alpha90d_*.cbm"))
+    neutralizer_path = get_latest(os.path.join(RESULTS_DIR, "neutralizer_alpha90d_*.pkl"))
 
     print(f"   Model      : {model_path}")
     print(f"   Neutralizer: {neutralizer_path}")

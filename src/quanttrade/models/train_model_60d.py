@@ -129,7 +129,7 @@ class FeatureNeutralizer(BaseEstimator, TransformerMixin):
 def load_and_prepare(path):
     df = pd.read_csv(path)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
-    return df.sort_values([SYMBOL_COL, DATE_COL]).reset_index(drop=True)
+    return df.sort_values([DATE_COL, SYMBOL_COL]).reset_index(drop=True)
 
 
 

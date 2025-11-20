@@ -377,7 +377,7 @@ class MasterDataFrameBuilder:
             logger.info(f"  Filtered by max_date {max_date}: {before} -> {len(master_df)} rows")
         
         # Sort by symbol and date
-        master_df = master_df.sort_values(['symbol', 'date']).reset_index(drop=True)
+        master_df = master_df.sort_values(['date', 'symbol']).reset_index(drop=True)
         
         return master_df
     

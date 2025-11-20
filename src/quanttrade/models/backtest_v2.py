@@ -1,19 +1,19 @@
 """
 QUANT-TRADE ALPHA BACKTESTER 2.0 (REALISTIC, NON-OVERLAP)
 
-- Son ALPHA CatBoost + Neutralizer'ı yükler  (model_results_alpha/)
-- Tüm tarih için skor üretir (P(y_alpha = 1))
-- Her 120 günde 1 kere (HORIZON) TOP_K hisse alır, 120 günlük getirisiyle backtest yapar
-- Kullanılan realized getiri: future_return_120d (nominal)
-- Benchmark: market_future_return_120d   (index)
-- Strateji getirisi: future_return_120d (TOP_K ortalama) - trading_cost
+- Son ALPHA CatBoost + Neutralizer'ı yükler  (model_results_alpha_90d/)
+- Sadece TEST döneminde skor üretir (dataset_split == 'test')
+- Her 90 günde 1 kere (HORIZON) TOP_K hisse alır, 90 günlük getirisiyle backtest yapar
+- Kullanılan realized getiri: future_return_90d (nominal)
+- Benchmark: market_future_return_90d   (index)
+- Strateji getirisi: future_return_90d (TOP_K ortalama) - trading_cost
 - Alpha: strategy_ret - benchmark_ret
-- Overlap YOK (her trade 120 gün sürer)
+- Overlap YOK (her trade 90 gün sürer)
 - Ekstra:
     * Likidite filtresi (min turnover)
     * Opsiyonel watchlist filtresi
     * Transaction cost + slippage (round-trip)
-- Sonuçlar: backtest_results_alpha/ klasörüne yazılır
+- Sonuçlar: backtest_results_alpha_90d/ klasörüne yazılır
 """
 
 import warnings
@@ -39,18 +39,18 @@ from typing import Dict, Optional, List
 # ==========================
 
 DATA_PATH = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_120d"
-BACKTEST_DIR = "backtest_results_alpha_120d"
+RESULTS_DIR = "model_results_alpha_90d"
+BACKTEST_DIR = "backtest_results_alpha_90d"
 
 SYMBOL_COL = "symbol"
 DATE_COL = "date"
 
-HORIZON = 120
+HORIZON = 90
 FUT_RET_COL = f"future_return_{HORIZON}d"
 MARKET_FUT_RET_COL = f"market_future_return_{HORIZON}d"
 MARKET_RET_COL = "macro_bist100_roc_5d"   # neutralization için
 
-TOP_K = 5                      # her rebalance gününde alınan hisse sayısı
+TOP_K = 10                      # her rebalance gününde alınan hisse sayısı
 MIN_STOCKS_PER_DAY = TOP_K     # universe'te en az bu kadar hisse olsun
 
 # --- Likidite filtresi ---
@@ -65,7 +65,6 @@ SLIPPAGE_BPS = 5               # 0.05%
 ROUNDTRIP_COST = (COMMISSION_BPS + SLIPPAGE_BPS) / 10_000  # oransal
 
 # --- Opsiyonel: universe filtresi (sadece bu hisseler) ---
-# None bırak, istersen liste koy.
 WATCHLIST: Optional[List[str]] = None
 # Örnek:
 # WATCHLIST = ["KCHOL","SAHOL","DOHOL","THYAO","ARCLK","ASELS","EREGL","FROTO","SISE","TUPRS"]
@@ -73,7 +72,7 @@ WATCHLIST: Optional[List[str]] = None
 
 # ==========================
 # FEATURE NEUTRALIZER CLASS
-#   (ALPHA model pipeline'daki ile aynı isim/signature)
+#   (Eğitim tarafındakiyle aynı isim/signature olmalı)
 # ==========================
 
 class FeatureNeutralizer(BaseEstimator, TransformerMixin):
@@ -144,8 +143,8 @@ def main():
     os.makedirs(BACKTEST_DIR, exist_ok=True)
 
     print(">> Son ALPHA modelini ve neutralizer'ı buluyorum...")
-    model_path = get_latest(os.path.join(RESULTS_DIR, "catboost_alpha120d_*.cbm"))
-    neutralizer_path = get_latest(os.path.join(RESULTS_DIR, "neutralizer_alpha120d_*.pkl"))
+    model_path = get_latest(os.path.join(RESULTS_DIR, "catboost_alpha90d_*.cbm"))
+    neutralizer_path = get_latest(os.path.join(RESULTS_DIR, "neutralizer_alpha90d_*.pkl"))
 
     print(f"   Model      : {model_path}")
     print(f"   Neutralizer: {neutralizer_path}")
@@ -163,13 +162,31 @@ def main():
     df = pd.read_csv(DATA_PATH)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
 
+    # ==============================
+    # SADECE TEST DÖNEMİ — OOS BACKTEST
+    # ==============================
+    if "dataset_split" not in df.columns:
+        raise ValueError("master_df içinde dataset_split yok. Master builder'ı doğru çalıştır.")
+
+    before_all = len(df)
+    df = df[df["dataset_split"] == "test"].reset_index(drop=True)
+    print(f">> Test filtresi: {before_all} -> {len(df)} satır (OOS backtest)")
+
+    if len(df) == 0:
+        raise ValueError("Test döneminde hiç satır yok. train_end_date / valid_end_date ayarlarını kontrol et.")
+
     # Future return ve market future return kontrolü
     for col in [FUT_RET_COL, MARKET_FUT_RET_COL, MARKET_RET_COL]:
         if col not in df.columns:
             raise ValueError(f"{col} kolonu yok. master_df'ine bak.")
 
-    # Sadece future_return dolu satırlar (son 120 gün NaN olabilir)
+    # Sadece future_return dolu satırlar (test döneminin son 90 günü NaN olabilir)
+    before = len(df)
     df = df.dropna(subset=[FUT_RET_COL, MARKET_FUT_RET_COL]).reset_index(drop=True)
+    print(f">> FUT_RET ve MARKET_FUT_RET dropna: {before} -> {len(df)} satır")
+
+    if len(df) == 0:
+        raise ValueError("Test döneminde future_return / market_future_return dolu satır kalmadı.")
 
     # WATCHLIST filtresi (opsiyonel)
     if WATCHLIST is not None:
@@ -195,18 +212,18 @@ def main():
 
     market_ret_all = df[MARKET_RET_COL].fillna(0.0)
 
-    print(">> Feature neutralization (tüm tarih)...")
+    print(">> Feature neutralization (sadece TEST dönemi)...")
     # Eğitimdeki neutralizer zaten fit edilmiş durumda, sadece transform kullanıyoruz
     X_all_neutral = neutralizer.transform(X_all, market_ret=market_ret_all)
 
-    print(">> Model skor üretiyor (tüm satırlar)...")
+    print(">> Model skor üretiyor (TEST satırları)...")
     df["score"] = model.predict_proba(X_all_neutral.values)[:, 1]
 
     # Tarihleri sırala (trading günleri)
     unique_dates = sorted(df[DATE_COL].unique())
     n_dates = len(unique_dates)
 
-    print(f">> Toplam gün sayısı: {n_dates}")
+    print(f">> Test döneminde toplam gün sayısı: {n_dates}")
     print(f">> Rebalance adımı (HORIZON): {HORIZON} gün")
     print(f">> TOP_K: {TOP_K}, MIN_TURNOVER_TL: {MIN_TURNOVER_TL:,.0f}, "
           f"ROUNDTRIP_COST: {ROUNDTRIP_COST*100:.2f}%")
@@ -231,10 +248,10 @@ def main():
 
         top = universe.head(TOP_K)
 
-        # Realized nominal 120d getiri
+        # Realized nominal 90d getiri
         gross_strat_ret = top[FUT_RET_COL].mean()
 
-        # Benchmark: index'in 120d getirisi (aynı gün için)
+        # Benchmark: index'in 90d getirisi (aynı gün için)
         # Genelde tüm satırlarda aynı olmalı, ortalama alıyoruz
         mkt_ret = universe[MARKET_FUT_RET_COL].mean()
 
@@ -263,7 +280,7 @@ def main():
         idx += HORIZON
 
     if not records:
-        raise ValueError("Hiç trade oluşmadı. Muhtemelen filtreler çok sıkı veya veri kısa.")
+        raise ValueError("Hiç trade oluşmadı. Muhtemelen filtreler çok sıkı veya test dönemi çok kısa.")
 
     bt = pd.DataFrame(records).sort_values("rebalance_date").reset_index(drop=True)
 
@@ -285,7 +302,7 @@ def main():
 
     lift_mean = (mean_strat / mean_mkt) if mean_mkt != 0 else np.nan
 
-    print("\n===== REALISTIC NON-OVERLAP ALPHA BACKTEST ÖZET =====")
+    print("\n===== REALISTIC NON-OVERLAP ALPHA BACKTEST ÖZET (TEST ONLY) =====")
     print(f"Trade sayısı                        : {len(bt)}")
     print(f"Ortalama strateji NET getirisi      : {mean_strat:.4f}")
     print(f"Ortalama endeks getirisi            : {mean_mkt:.4f}")
@@ -309,7 +326,7 @@ def main():
     plt.plot(bt["rebalance_date"], bt["alpha_equity"], label="Alpha only (excess)")
     plt.xlabel("Date")
     plt.ylabel("Cumulative Return (1 = flat)")
-    plt.title(f"ALPHA Equity Curve (TOP {TOP_K} / {HORIZON}d, non-overlap, realistic)")
+    plt.title(f"ALPHA Equity Curve (TOP {TOP_K} / {HORIZON}d, non-overlap, realistic, TEST only)")
     plt.legend()
     plt.tight_layout()
     out_png = os.path.join(BACKTEST_DIR, f"equity_curve_alpha_nonoverlap_realistic_{ts}.png")
@@ -317,7 +334,7 @@ def main():
     plt.close()
     print(f"Equity curve PNG kaydedildi: {out_png}")
 
-    print("\nRealistic alpha backtest tamamlandı.")
+    print("\nRealistic alpha backtest (TEST ONLY) tamamlandı.")
 
 
 if __name__ == "__main__":

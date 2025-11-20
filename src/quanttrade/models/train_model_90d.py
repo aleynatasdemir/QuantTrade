@@ -39,12 +39,11 @@ FUT_RET_COL = f"future_return_{HORIZON}d"
 MARKET_FUT_RET_COL = f"market_future_return_{HORIZON}d"
 ALPHA_COL = f"alpha_{HORIZON}d"
 
-MARKET_RET_COL = "macro_bist100_roc_5d"   # neutralizer içinde kullanılıyor
+MARKET_RET_COL = "macro_bist100_roc_5d"
 
 N_SPLITS = 5
 PURGE_WINDOW = 20
 EMBARGO_PCT = 0.05
-
 
 
 # ============================================================
@@ -87,19 +86,18 @@ class PurgedTimeSeriesSplit(BaseCrossValidator):
 
 
 # ============================================================
-# FEATURE NEUTRALIZER — CLEAN (Leakage-free inside CV)
+# FEATURE NEUTRALIZER
 # ============================================================
 
 class FeatureNeutralizer(BaseEstimator, TransformerMixin):
 
     def __init__(self, market_ret):
-        # NaN → 0
         mr = pd.Series(market_ret).fillna(0).values.reshape(-1, 1)
         self.market_ret = mr
         self.models_: Dict[str, LinearRegression] = {}
 
     def fit(self, X, y=None):
-        mr = self.market_ret  # zaten NaN'tan arındırıldı
+        mr = self.market_ret
         self.models_ = {}
         for col in X.columns:
             lr = LinearRegression()
@@ -111,15 +109,13 @@ class FeatureNeutralizer(BaseEstimator, TransformerMixin):
         if market_ret is None:
             mr = self.market_ret
         else:
-            mr = pd.Series(market_ret).fillna(0).values.reshape(-1, 1)  # <-- kritik
+            mr = pd.Series(market_ret).fillna(0).values.reshape(-1, 1)
 
         Xn = X.copy()
         for col in X.columns:
             pred = self.models_[col].predict(mr)
             Xn[col] = X[col] - pred
         return Xn
-
-
 
 
 # ============================================================
@@ -129,8 +125,7 @@ class FeatureNeutralizer(BaseEstimator, TransformerMixin):
 def load_and_prepare(path):
     df = pd.read_csv(path)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
-    return df.sort_values([SYMBOL_COL, DATE_COL]).reset_index(drop=True)
-
+    return df.sort_values([DATE_COL, SYMBOL_COL]).reset_index(drop=True)
 
 
 # ============================================================
@@ -143,45 +138,50 @@ def build_alpha(df):
     return df.dropna(subset=["y_alpha"]).reset_index(drop=True)
 
 
-
 # ============================================================
-# FEATURE SELECTION — CLEAN
+# FEATURE SELECTION
 # ============================================================
 
 def select_features(df):
 
-    # DROP everything containing future_ OR y_
+    # 1) future_ ve y_ içeren her şeyi at
     drop_cols = {c for c in df.columns if "future_" in c or c.startswith("y_")}
 
-    # DROP all alpha_* except the target we're training (alpha_90d)
+    # 2) alpha_* içinden sadece hedef horizon kalsın
     drop_cols |= {c for c in df.columns if c.startswith("alpha_") and c != ALPHA_COL}
 
-    # DROP id columns + target + market future
+    # 3) id + target + ilgili future kolonları
     drop_cols |= {
-        SYMBOL_COL, DATE_COL,
-        ALPHA_COL,       # target
-        FUT_RET_COL,     # future return
-        MARKET_FUT_RET_COL
+        SYMBOL_COL,
+        DATE_COL,
+        ALPHA_COL,
+        FUT_RET_COL,
+        MARKET_FUT_RET_COL,
     }
 
-    # DROP raw price data
-    drop_cols |= {"price_open", "price_high", "price_low", "price_adj_close"}
+    # 4) ham OHLC
+    drop_cols |= {
+        "price_open",
+        "price_high",
+        "price_low",
+        "price_adj_close",
+    }
 
-    # Final feature list
+    # 5) feature listesi
     features = [
         c for c in df.columns
         if c not in drop_cols and pd.api.types.is_numeric_dtype(df[c])
     ]
 
+    # 6) temizlik
     X = df[features].replace([np.inf, -np.inf], np.nan)
     X = X.fillna(X.median())
 
     return X, df["y_alpha"], features
 
 
-
 # ============================================================
-# METRICS + ROC PLOT
+# METRICS + ROC
 # ============================================================
 
 def save_metrics_and_plots(y_true, y_prob, fold_auc_list):
@@ -217,9 +217,8 @@ def save_metrics_and_plots(y_true, y_prob, fold_auc_list):
     plt.close()
 
 
-
 # ============================================================
-# TRAIN PIPELINE — CLEAN, LEAKAGE-FREE
+# TRAIN PIPELINE (train+valid only)
 # ============================================================
 
 def run_pipeline():
@@ -230,8 +229,12 @@ def run_pipeline():
     print(">> Building ALPHA target...")
     df = build_alpha(df)
 
+    # --------- BURASI KRİTİK: sadece train + valid kullan ----------
+    print(">> Filtering to TRAIN + VALID only...")
+    df_tv = df[df["dataset_split"].isin(["train", "valid"])].reset_index(drop=True)
+
     print(">> Selecting features...")
-    X, y, feature_names = select_features(df)
+    X, y, feature_names = select_features(df_tv)
 
     X = X.reset_index(drop=True)
     y = y.reset_index(drop=True)
@@ -239,29 +242,23 @@ def run_pipeline():
     X_mat = X.values
     y_vec = y.values
 
+    market_ret = df_tv[MARKET_RET_COL].reset_index(drop=True)
+
     print(">> Starting Purged CV Training (Leakage-Free)...")
 
     cv = PurgedTimeSeriesSplit(N_SPLITS, PURGE_WINDOW, EMBARGO_PCT)
 
-    oof_pred = np.zeros(len(df))
+    oof_pred = np.zeros(len(df_tv))
     fold_aucs = []
 
     for fold, (tr, te) in enumerate(cv.split(X_mat), 1):
 
-        # ------------------------- 
-        # Leakage-free neutralizer
-        # -------------------------
-        nz = FeatureNeutralizer(
-            df[MARKET_RET_COL].iloc[tr].fillna(0)
-        )
+        nz = FeatureNeutralizer(market_ret.iloc[tr].fillna(0))
         nz.fit(X.iloc[tr])
 
         Xtr_n = nz.transform(X.iloc[tr])
-        Xte_n = nz.transform(X.iloc[te], market_ret=df[MARKET_RET_COL].iloc[te])
+        Xte_n = nz.transform(X.iloc[te], market_ret=market_ret.iloc[te])
 
-        # -------------------------
-        # Model Fit
-        # -------------------------
         model = CatBoostClassifier(
             loss_function="Logloss",
             eval_metric="AUC",
@@ -280,16 +277,16 @@ def run_pipeline():
         fold_aucs.append(auc)
         print(f"Fold {fold} AUC: {auc:.3f}")
 
-    print("\n>> OOF Results:")
+    print("\n>> OOF Results (train+valid only):")
     save_metrics_and_plots(y_vec, oof_pred, fold_aucs)
 
     # ======================================================
-    # FINAL MODEL TRAINING (Full data, leakage-free neutralizer)
+    # FINAL MODEL (train+valid üzerinde)
     # ======================================================
 
-    print("\n>> Training Final Model on ALL data...")
+    print("\n>> Training Final Model on TRAIN+VALID data...")
 
-    final_nz = FeatureNeutralizer(df[MARKET_RET_COL].fillna(0))
+    final_nz = FeatureNeutralizer(market_ret.fillna(0))
     final_nz.fit(X)
     X_all_n = final_nz.transform(X)
 
@@ -313,9 +310,7 @@ def run_pipeline():
 
     print("\n>> Saved MODEL:", model_path)
     print(">> Saved NEUTRALIZER:", neutralizer_path)
-
     print("\n✨ TRAINING COMPLETED — CLEAN, LEAKAGE-FREE ✔️\n")
-
 
 
 if __name__ == "__main__":
