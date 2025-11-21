@@ -1,7 +1,8 @@
 {
   "id_columns": [
     "symbol",
-    "date"
+    "date",
+    "sector"
   ],
   "feature_columns": [
     "price_open",

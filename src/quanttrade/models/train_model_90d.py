@@ -39,6 +39,7 @@ FUT_RET_COL = f"future_return_{HORIZON}d"
 MARKET_FUT_RET_COL = f"market_future_return_{HORIZON}d"
 ALPHA_COL = f"alpha_{HORIZON}d"
 
+
 MARKET_RET_COL = "macro_bist100_roc_5d"
 
 N_SPLITS = 5
@@ -176,6 +177,17 @@ def select_features(df):
     # 6) temizlik
     X = df[features].replace([np.inf, -np.inf], np.nan)
     X = X.fillna(X.median())
+    
+    X = df[features].replace([np.inf, -np.inf], np.nan)
+    X = X.fillna(X.median())
+
+    # DEBUG: hangi makro feature'lar kullanılıyor görelim
+    macro_feats = [c for c in features if c.startswith("macro_")]
+    print(f"Toplam feature sayısı: {len(features)}")
+    print(f"Makro feature sayısı: {len(macro_feats)}")
+    print("Makro feature'lar:") 
+    for c in macro_feats:
+        print("  -", c)
 
     return X, df["y_alpha"], features
 

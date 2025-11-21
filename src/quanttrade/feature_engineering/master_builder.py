@@ -39,6 +39,96 @@ class MasterDataFrameBuilder:
     Builds the final master dataframe combining all feature sets.
     """
     
+    # Sector mapping for all symbols
+    SECTOR_MAPPING = {
+        # Holding & Investment
+        "KCHOL": "Holding & Investment", "SAHOL": "Holding & Investment", 
+        "DOHOL": "Holding & Investment", "TKFEN": "Holding & Investment", 
+        "ALARK": "Holding & Investment", "GSDHO": "Holding & Investment", 
+        "AGHOL": "Holding & Investment", "BERA": "Holding & Investment", 
+        "NTHOL": "Holding & Investment", "TEKTU": "Holding & Investment",
+        
+        # Industry & Metal
+        "EREGL": "Industry & Metal", "KRDMD": "Industry & Metal", 
+        "KRDMA": "Industry & Metal", "KRDMB": "Industry & Metal", 
+        "ISDMR": "Industry & Metal", "CEMTS": "Industry & Metal", 
+        "SARKY": "Industry & Metal", "BMSCH": "Industry & Metal",
+        
+        # Automotive & Suppliers
+        "FROTO": "Automotive & Suppliers", "TOASO": "Automotive & Suppliers", 
+        "TTRAK": "Automotive & Suppliers", "OTKAR": "Automotive & Suppliers", 
+        "KORDS": "Automotive & Suppliers", "BRISA": "Automotive & Suppliers", 
+        "GOODY": "Automotive & Suppliers", "DOAS": "Automotive & Suppliers", 
+        "KARSN": "Automotive & Suppliers", "TMSN": "Automotive & Suppliers",
+        
+        # Energy (Renewable & Electricity)
+        "AKSEN": "Energy", "ENKAI": "Energy", "ZOREN": "Energy", 
+        "ODAS": "Energy", "ASTOR": "Energy", "EUPWR": "Energy", 
+        "SMRTG": "Energy", "ALFAS": "Energy", "GWIND": "Energy", 
+        "BIOEN": "Energy", "AYDEM": "Energy", "AKENR": "Energy", 
+        "CANTE": "Energy", "MAGEN": "Energy", "HUNER": "Energy",
+        
+        # Refinery & Petrochemicals
+        "TUPRS": "Refinery & Petrochemicals", "PETKM": "Refinery & Petrochemicals", 
+        "SASA": "Refinery & Petrochemicals", "HEKTS": "Refinery & Petrochemicals", 
+        "GUBRF": "Refinery & Petrochemicals", "BAGFS": "Refinery & Petrochemicals",
+        
+        # Technology & Software
+        "ASELS": "Technology & Software", "LOGO": "Technology & Software", 
+        "MIATK": "Technology & Software", "SDTTR": "Technology & Software", 
+        "ARDYZ": "Technology & Software", "KFEIN": "Technology & Software", 
+        "VBTYZ": "Technology & Software", "PENTA": "Technology & Software", 
+        "PAPIL": "Technology & Software", "FONET": "Technology & Software", 
+        "SMART": "Technology & Software",
+        
+        # Telecommunications
+        "TCELL": "Telecommunications", "TTKOM": "Telecommunications",
+        
+        # Retail & Food
+        "BIMAS": "Retail & Food", "MGROS": "Retail & Food", 
+        "SOKM": "Retail & Food", "ULKER": "Retail & Food", 
+        "AEFES": "Retail & Food", "CCOLA": "Retail & Food", 
+        "MAVI": "Retail & Food", "BIZIM": "Retail & Food", 
+        "TUKAS": "Retail & Food", "TATGD": "Retail & Food", 
+        "PETUN": "Retail & Food", "KCVYG": "Retail & Food",
+        
+        # Durable Goods & Electronics
+        "ARCLK": "Durable Goods & Electronics", 
+        "VESTL": "Durable Goods & Electronics", 
+        "VESBE": "Durable Goods & Electronics",
+        
+        # Airlines & Transportation
+        "THYAO": "Airlines & Transportation", "PGSUS": "Airlines & Transportation", 
+        "TAVHL": "Airlines & Transportation", "CLEBI": "Airlines & Transportation", 
+        "GSDDE": "Airlines & Transportation", "TLMAN": "Airlines & Transportation", 
+        "TUREX": "Airlines & Transportation",
+        
+        # Cement & Glass & Soil
+        "SISE": "Cement & Glass & Soil", "OYAKC": "Cement & Glass & Soil", 
+        "AKCNS": "Cement & Glass & Soil", "CIMSA": "Cement & Glass & Soil", 
+        "BUCIM": "Cement & Glass & Soil", "NUHCM": "Cement & Glass & Soil", 
+        "KUTPO": "Cement & Glass & Soil",
+        
+        # Real Estate (REIT) & Construction
+        "EKGYO": "Real Estate & Construction", "ISGYO": "Real Estate & Construction", 
+        "TRGYO": "Real Estate & Construction", "AKFGY": "Real Estate & Construction", 
+        "SNGYO": "Real Estate & Construction", "OZKGY": "Real Estate & Construction", 
+        "HLGYO": "Real Estate & Construction", "KIZIL": "Real Estate & Construction",
+        
+        # Mining
+        "KOZAL": "Mining", "KOZAA": "Mining", 
+        "IPEKE": "Mining", "PRKME": "Mining",
+        
+        # Paper & Packaging
+        "KARTN": "Paper & Packaging", "ALKA": "Paper & Packaging", 
+        "TEZOL": "Paper & Packaging",
+        
+        # Other
+        "KIMMR": "Other", "ORGE": "Other", "QUAGR": "Other", 
+        "KMPUR": "Other", "JANTS": "Other", "PARSN": "Other", 
+        "INDES": "Other",
+    }
+    
     def __init__(self, base_path: str = None):
         """
         Initialize the master dataframe builder.
@@ -224,6 +314,10 @@ class MasterDataFrameBuilder:
         
         logger.info(f"  Price data: {len(price_df)} days")
         
+        # Add sector column
+        price_df['sector'] = self.SECTOR_MAPPING.get(symbol, 'Other')
+        logger.info(f"  Sector: {price_df['sector'].iloc[0]}")
+        
         # Merge with macro features
         logger.info(f"  Merging with macro features...")
         merged = pd.merge(
@@ -394,7 +488,7 @@ class MasterDataFrameBuilder:
         all_columns = df.columns.tolist()
         
         # ID columns
-        id_cols = ['symbol', 'date']
+        id_cols = ['symbol', 'date', 'sector']
         
         # Target columns (future-looking variables, alpha dahil)
         target_cols = [
