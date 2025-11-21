@@ -13,7 +13,7 @@ QUANT-TRADE ALPHA BACKTESTER 2.0 (REALISTIC, NON-OVERLAP)
     * Likidite filtresi (min turnover)
     * Opsiyonel watchlist filtresi
     * Transaction cost + slippage (round-trip)
-- Sonuçlar: backtest_results_alpha_10d/ klasörüne yazılır
+- Sonuçlar: backtest_results_alpha_20d/ klasörüne yazılır
 """
 
 import warnings
@@ -39,8 +39,8 @@ from typing import Dict, Optional, List
 # ==========================
 
 DATA_PATH = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_10d"
-BACKTEST_DIR = "backtest_results_alpha_10d"
+RESULTS_DIR = "model_results_alpha_20d"
+BACKTEST_DIR = "backtest_results_alpha_20d"
 
 SYMBOL_COL = "symbol"
 DATE_COL = "date"
@@ -48,7 +48,14 @@ DATE_COL = "date"
 HORIZON = 20
 FUT_RET_COL = f"future_return_{HORIZON}d"
 MARKET_FUT_RET_COL = f"market_future_return_{HORIZON}d"
-MARKET_RET_COL = "macro_bist100_roc_5d"   # neutralization için
+
+FACTOR_COLS = [
+    "macro_bist100_roc_20d",      # Genel market faktörü
+    "macro_usdtry_vs_bist100",    # Kur faktörü
+    "macro_tcmb_rate_change_5d",  # Faiz şok faktörü
+]
+
+SECTOR_COL = "sector"
 
 TOP_K = 5                     # her rebalance gününde alınan hisse sayısı
 MIN_STOCKS_PER_DAY = TOP_K     # universe'te en az bu kadar hisse olsun
@@ -77,51 +84,117 @@ WATCHLIST: Optional[List[str]] = None
 
 class FeatureNeutralizer(BaseEstimator, TransformerMixin):
     """
-    Eğitimde:
-        neutralizer = FeatureNeutralizer(df[MARKET_RET_COL].fillna(0))
-        Xn = neutralizer.fit_transform(X)
+    Çok faktörlü + sektör dummy'li nötralizasyon.
 
-    Prediction / backtest'te:
-        Xn_all = neutralizer.transform(X_all, market_ret_all)
+    Her feature için:
+        feature ~ intercept + factors + sector_dummies
+    regresyonu kurup residual = feature - predicted alır.
     """
 
-    def __init__(self, market_ret: Optional[pd.Series] = None):
-        if market_ret is not None:
-            self.market_ret = market_ret.values.reshape(-1, 1)
-        else:
-            self.market_ret = None
+    def __init__(self, factors: pd.DataFrame, sector: Optional[pd.Series] = None):
+        """
+        Args:
+            factors: Eğitim setine ait faktör kolonları (DataFrame)
+            sector: Eğitim setine ait sektör etiketleri (Series, opsiyonel)
+        """
+        self.factors = pd.DataFrame(factors).copy()
+        self.sector = pd.Series(sector).copy() if sector is not None else None
+
         self.models_: Dict[str, LinearRegression] = {}
+        self.factor_cols_ = list(self.factors.columns)
+        self.sector_dummy_cols_: Optional[list] = None
+
+    def _build_design_matrix(
+        self,
+        factors: pd.DataFrame,
+        sector: Optional[pd.Series]
+    ) -> np.ndarray:
+        """
+        Faktörler + sektör dummy'lerinden tasarım matrisi (F) üretir.
+        """
+        # Faktör kolonlarını aynı sıraya sok
+        F_parts = []
+
+        n = len(factors)
+
+        # 1) Intercept
+        F_parts.append(np.ones((n, 1), dtype=float))
+
+        # 2) Faktörler
+        if factors is not None and factors.shape[1] > 0:
+            fac = factors[self.factor_cols_].fillna(0.0).values.astype(float)
+            F_parts.append(fac)
+
+        # 3) Sektör dummy'leri
+        if self.sector_dummy_cols_ is not None and sector is not None:
+            dummies = pd.get_dummies(sector.astype(str), prefix="sector")
+            # Eğitimde kullanılan dummy kolonlarını koru
+            dummies = dummies.reindex(columns=self.sector_dummy_cols_, fill_value=0.0)
+            F_parts.append(dummies.values.astype(float))
+
+        # Hepsini birleştir
+        F = np.hstack(F_parts)
+        return F
 
     def fit(self, X: pd.DataFrame, y=None):
+        """
+        Eğitim seti features X için faktör/sektöre göre regresyon katsayılarını öğren.
+        """
+        # Sektör dummy kolonlarını belirle
+        if self.sector is not None:
+            dummies = pd.get_dummies(self.sector.astype(str), prefix="sector")
+            self.sector_dummy_cols_ = list(dummies.columns)
+        else:
+            self.sector_dummy_cols_ = None
+
+        # Tasarım matrisi (train)
+        F_train = self._build_design_matrix(self.factors, self.sector)
+
         self.models_ = {}
-        if self.market_ret is None:
-            raise ValueError("market_ret is None, cannot fit")
         for col in X.columns:
             lr = LinearRegression()
-            lr.fit(self.market_ret, X[col].values)
+            lr.fit(F_train, X[col].values)
             self.models_[col] = lr
+
         return self
 
-    def transform(self, X: pd.DataFrame, market_ret: Optional[pd.Series] = None):
+    def transform(
+        self,
+        X: pd.DataFrame,
+        factors: Optional[pd.DataFrame] = None,
+        sector: Optional[pd.Series] = None
+    ) -> pd.DataFrame:
         """
-        Prediction-time neutralization.
-        - market_ret verilirse onu kullanır, verilmezse train'deki market_ret'i kullanır.
-        """
-        X_neutral = X.copy()
+        Verilen X için faktör/sektör etkisini çıkar.
 
-        if market_ret is not None:
-            mkt_values = market_ret.values.reshape(-1, 1)
+        Args:
+            X: Nötralize edilecek feature matrisi (test veya train)
+            factors: Aynı satırlara ait faktör DataFrame'i
+            sector: Aynı satırlara ait sektör etiketleri
+
+        Returns:
+            Xn: Nötralize edilmiş feature matrisi
+        """
+        # Eğer parametre verilmezse eğitimdeki ile aynı seti kullan
+        if factors is None:
+            factors = self.factors
         else:
-            mkt_values = self.market_ret
+            factors = pd.DataFrame(factors)
 
-        if mkt_values is None:
-            raise ValueError("No market_ret available for transform().")
+        if sector is None:
+            sector = self.sector
+        else:
+            sector = pd.Series(sector)
 
+        F_new = self._build_design_matrix(factors, sector)
+
+        Xn = X.copy()
         for col in X.columns:
             lr = self.models_[col]
-            pred = lr.predict(mkt_values)
-            X_neutral[col] = X[col].values - pred
-        return X_neutral
+            pred = lr.predict(F_new)
+            Xn[col] = X[col].values - pred
+
+        return Xn
 
 
 # ==========================
@@ -176,7 +249,8 @@ def main():
         raise ValueError("Test döneminde hiç satır yok. train_end_date / valid_end_date ayarlarını kontrol et.")
 
     # Future return ve market future return kontrolü
-    for col in [FUT_RET_COL, MARKET_FUT_RET_COL, MARKET_RET_COL]:
+    required_cols = [FUT_RET_COL, MARKET_FUT_RET_COL] + FACTOR_COLS + [SECTOR_COL]
+    for col in required_cols:
         if col not in df.columns:
             raise ValueError(f"{col} kolonu yok. master_df'ine bak.")
 
@@ -210,11 +284,17 @@ def main():
     X_all = X_all.replace([np.inf, -np.inf], np.nan)
     X_all = X_all.fillna(X_all.median())
 
-    market_ret_all = df[MARKET_RET_COL].fillna(0.0)
+    # Faktör ve sektör kolonlarını test verisinden çek
+    factor_cols_present = [c for c in FACTOR_COLS if c in df.columns]
+    if not factor_cols_present:
+        raise ValueError(f"Hiçbir FACTOR_COLS kolonunu bulamadım: {FACTOR_COLS}")
+    
+    factors_test = df[factor_cols_present].reset_index(drop=True)
+    sector_test = df[SECTOR_COL].fillna("other").astype(str).reset_index(drop=True)
 
     print(">> Feature neutralization (sadece TEST dönemi)...")
     # Eğitimdeki neutralizer zaten fit edilmiş durumda, sadece transform kullanıyoruz
-    X_all_neutral = neutralizer.transform(X_all, market_ret=market_ret_all)
+    X_all_neutral = neutralizer.transform(X_all, factors=factors_test, sector=sector_test)
 
     print(">> Model skor üretiyor (TEST satırları)...")
     df["score"] = model.predict_proba(X_all_neutral.values)[:, 1]

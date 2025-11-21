@@ -13,7 +13,7 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Optional
 
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, roc_curve
@@ -45,6 +45,14 @@ N_SPLITS = 5
 PURGE_WINDOW = 10
 EMBARGO_PCT = 0.05
 
+FACTOR_COLS = [
+    "macro_bist100_roc_20d",      # Genel market faktörü
+    "macro_usdtry_vs_bist100",    # Kur faktörü
+    "macro_tcmb_rate_change_5d",  # Faiz şok faktörü
+]
+
+
+SECTOR_COL = "sector"
 
 # ============================================================
 # PURGED TIME SERIES SPLIT
@@ -86,35 +94,121 @@ class PurgedTimeSeriesSplit(BaseCrossValidator):
 
 
 # ============================================================
-# FEATURE NEUTRALIZER
+# FEATURE NEUTRALIZER (MULTI-FACTOR + SECTOR)
 # ============================================================
 
 class FeatureNeutralizer(BaseEstimator, TransformerMixin):
+    """
+    Çok faktörlü + sektör dummy'li nötralizasyon.
 
-    def __init__(self, market_ret):
-        mr = pd.Series(market_ret).fillna(0).values.reshape(-1, 1)
-        self.market_ret = mr
+    Her feature için:
+        feature ~ intercept + factors + sector_dummies
+    regresyonu kurup residual = feature - predicted alır.
+    """
+
+    def __init__(self, factors: pd.DataFrame, sector: Optional[pd.Series] = None):
+        """
+        Args:
+            factors: Eğitim setine ait faktör kolonları (DataFrame)
+            sector: Eğitim setine ait sektör etiketleri (Series, opsiyonel)
+        """
+        self.factors = pd.DataFrame(factors).copy()
+        self.sector = pd.Series(sector).copy() if sector is not None else None
+
         self.models_: Dict[str, LinearRegression] = {}
+        self.factor_cols_ = list(self.factors.columns)
+        self.sector_dummy_cols_: Optional[list] = None
 
-    def fit(self, X, y=None):
-        mr = self.market_ret
+    def _build_design_matrix(
+        self,
+        factors: pd.DataFrame,
+        sector: Optional[pd.Series]
+    ) -> np.ndarray:
+        """
+        Faktörler + sektör dummy'lerinden tasarım matrisi (F) üretir.
+        """
+        # Faktör kolonlarını aynı sıraya sok
+        F_parts = []
+
+        n = len(factors)
+
+        # 1) Intercept
+        F_parts.append(np.ones((n, 1), dtype=float))
+
+        # 2) Faktörler
+        if factors is not None and factors.shape[1] > 0:
+            fac = factors[self.factor_cols_].fillna(0.0).values.astype(float)
+            F_parts.append(fac)
+
+        # 3) Sektör dummy'leri
+        if self.sector_dummy_cols_ is not None and sector is not None:
+            dummies = pd.get_dummies(sector.astype(str), prefix="sector")
+            # Eğitimde kullanılan dummy kolonlarını koru
+            dummies = dummies.reindex(columns=self.sector_dummy_cols_, fill_value=0.0)
+            F_parts.append(dummies.values.astype(float))
+
+        # Hepsini birleştir
+        F = np.hstack(F_parts)
+        return F
+
+    def fit(self, X: pd.DataFrame, y=None):
+        """
+        Eğitim seti features X için faktör/sektöre göre regresyon katsayılarını öğren.
+        """
+        # Sektör dummy kolonlarını belirle
+        if self.sector is not None:
+            dummies = pd.get_dummies(self.sector.astype(str), prefix="sector")
+            self.sector_dummy_cols_ = list(dummies.columns)
+        else:
+            self.sector_dummy_cols_ = None
+
+        # Tasarım matrisi (train)
+        F_train = self._build_design_matrix(self.factors, self.sector)
+
         self.models_ = {}
         for col in X.columns:
             lr = LinearRegression()
-            lr.fit(mr, X[col].values)
+            lr.fit(F_train, X[col].values)
             self.models_[col] = lr
+
         return self
 
-    def transform(self, X, market_ret=None):
-        if market_ret is None:
-            mr = self.market_ret
+    def transform(
+        self,
+        X: pd.DataFrame,
+        factors: Optional[pd.DataFrame] = None,
+        sector: Optional[pd.Series] = None
+    ) -> pd.DataFrame:
+        """
+        Verilen X için faktör/sektör etkisini çıkar.
+
+        Args:
+            X: Nötralize edilecek feature matrisi (test veya train)
+            factors: Aynı satırlara ait faktör DataFrame'i
+            sector: Aynı satırlara ait sektör etiketleri
+
+        Returns:
+            Xn: Nötralize edilmiş feature matrisi
+        """
+        # Eğer parametre verilmezse eğitimdeki ile aynı seti kullan
+        if factors is None:
+            factors = self.factors
         else:
-            mr = pd.Series(market_ret).fillna(0).values.reshape(-1, 1)
+            factors = pd.DataFrame(factors)
+
+        if sector is None:
+            sector = self.sector
+        else:
+            sector = pd.Series(sector)
+
+        F_new = self._build_design_matrix(factors, sector)
 
         Xn = X.copy()
         for col in X.columns:
-            pred = self.models_[col].predict(mr)
-            Xn[col] = X[col] - pred
+            lr = self.models_[col]
+            pred = lr.predict(F_new)
+            Xn[col] = X[col].values - pred
+
         return Xn
 
 
@@ -181,6 +275,11 @@ def select_features(df):
         "price_low",
         "price_adj_close",
     }
+    # 4-b) sektör kolonu (feature olarak kullanmayacağız)
+    drop_cols |= {SECTOR_COL}
+    
+    drop_cols |= set(FACTOR_COLS)
+
 
     # 5) feature listesi
     features = [
@@ -257,7 +356,17 @@ def run_pipeline():
     X_mat = X.values
     y_vec = y.values
 
-    market_ret = df_tv[MARKET_RET_COL].reset_index(drop=True)
+    # --- Faktör ve sektör serilerini hazırla ---
+    factor_cols_present = [c for c in FACTOR_COLS if c in df_tv.columns]
+    if not factor_cols_present:
+        raise ValueError(f"Hiçbir FACTOR_COLS kolonunu bulamadım: {FACTOR_COLS}")
+
+    factors_all = df_tv[factor_cols_present].reset_index(drop=True)
+
+    if SECTOR_COL not in df_tv.columns:
+        raise ValueError(f"Sektör kolonu bulunamadı: {SECTOR_COL}")
+
+    sector_all = df_tv[SECTOR_COL].fillna("other").astype(str).reset_index(drop=True)
 
     print(">> Starting Purged CV Training (Leakage-Free)...")
 
@@ -268,28 +377,39 @@ def run_pipeline():
 
     for fold, (tr, te) in enumerate(cv.split(X_mat), 1):
 
-        nz = FeatureNeutralizer(market_ret.iloc[tr].fillna(0))
+        # Fold'un faktör ve sektör setleri
+        factors_tr = factors_all.iloc[tr].reset_index(drop=True)
+        factors_te = factors_all.iloc[te].reset_index(drop=True)
+
+        sector_tr = sector_all.iloc[tr].reset_index(drop=True)
+        sector_te = sector_all.iloc[te].reset_index(drop=True)
+
+        # Çok faktörlü + sektör nötralizatörü fit et
+        nz = FeatureNeutralizer(factors_tr, sector_tr)
         nz.fit(X.iloc[tr])
 
-        Xtr_n = nz.transform(X.iloc[tr])
-        Xte_n = nz.transform(X.iloc[te], market_ret=market_ret.iloc[te])
+        # Train ve test nötralize
+        Xtr_n = nz.transform(X.iloc[tr], factors_tr, sector_tr)
+        Xte_n = nz.transform(X.iloc[te], factors_te, sector_te)
 
-        model = CatBoostClassifier(
-            loss_function="Logloss",
-            eval_metric="AUC",
-            depth=6,
-            learning_rate=0.05,
-            iterations=500,
-            verbose=False
+        # MODEL BURADA NÖTRALİZE EDİLMİŞ DATAYLA EĞİTİLİR
+        model = CatBoostClassifier (
+            loss_function = "Logloss",
+            eval_metric = "AUC",
+            depth = 6,
+            learning_rate = 0.05,
+            iterations = 700,
+            verbose = False,
         )
+        model.fit(Xtr_n, y.iloc[tr])
 
-        model.fit(Pool(Xtr_n, y_vec[tr]), eval_set=Pool(Xte_n, y_vec[te]))
-
+        # Tahmin de nötralize edilmiş test ile yapılır
         prob = model.predict_proba(Xte_n)[:, 1]
         oof_pred[te] = prob
 
         auc = roc_auc_score(y_vec[te], prob)
         fold_aucs.append(auc)
+
         print(f"Fold {fold} AUC: {auc:.3f}")
 
     print("\n>> OOF Results (train+valid only):")
@@ -301,9 +421,13 @@ def run_pipeline():
 
     print("\n>> Training Final Model on TRAIN+VALID data...")
 
-    final_nz = FeatureNeutralizer(market_ret.fillna(0))
+    # Tüm train+valid için faktör ve sektör
+    final_factors = factors_all  # zaten reset_index yaptık
+    final_sector = sector_all
+
+    final_nz = FeatureNeutralizer(final_factors, final_sector)
     final_nz.fit(X)
-    X_all_n = final_nz.transform(X)
+    X_all_n = final_nz.transform(X, final_factors, final_sector)
 
     final_model = CatBoostClassifier(
         loss_function="Logloss",
@@ -326,6 +450,7 @@ def run_pipeline():
     print("\n>> Saved MODEL:", model_path)
     print(">> Saved NEUTRALIZER:", neutralizer_path)
     print("\n✨ TRAINING COMPLETED — CLEAN, LEAKAGE-FREE ✔️\n")
+
 
 
 if __name__ == "__main__":
