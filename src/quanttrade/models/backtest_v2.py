@@ -39,8 +39,8 @@ from typing import Dict, Optional, List
 # ==========================
 
 DATA_PATH = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_10d"
-BACKTEST_DIR = "backtest_results_alpha_10d"
+RESULTS_DIR = "model_results_alpha_20d"
+BACKTEST_DIR = "backtest_results_alpha_20d"
 
 SYMBOL_COL = "symbol"
 DATE_COL = "date"
