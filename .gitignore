@@ -58,4 +58,4 @@ data/master/master_df.csv
 src/quanttrade/models/master_df.csv
 data/master/master_df.parquet
 data/master/master_df_metadata.json
-
+src/quanttrade/models/catboost_info
