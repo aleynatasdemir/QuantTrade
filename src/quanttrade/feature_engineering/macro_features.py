@@ -156,6 +156,22 @@ class MacroFeatureEngineer:
         result['usdtry_roc_1d'] = self._calculate_roc(df['usd_try'], 1)
         result['usdtry_roc_5d'] = self._calculate_roc(df['usd_try'], 5)
         result['usdtry_roc_20d'] = self._calculate_roc(df['usd_try'], 20)
+
+        # --- USDTRY REGIME FEATURES ---
+        # 200 günlük ortalama
+        result["usdtry_ma200"] = df["usd_try"].rolling(200).mean()
+        # Kurun uzun vadeli trendine göre konumu
+        result["usdtry_distance_ma200"] = result["usd_try"] / result["usdtry_ma200"] - 1.0
+
+        # Günlük kur değişimi üzerinden volatilite
+        usd_ret_1d = result["usdtry_roc_1d"]
+        result["usdtry_vol_20d"] = usd_ret_1d.rolling(20).std()
+        result["usdtry_vol_60d"] = usd_ret_1d.rolling(60).std()
+
+        # Vol regime
+        ratio_usd_vol = result["usdtry_vol_20d"] / result["usdtry_vol_60d"]
+        result["usdtry_vol_regime"] = ratio_usd_vol.replace([np.inf, -np.inf], np.nan)
+
         
         # ===================================================================
         # 2. EUR/TRY Features
@@ -175,6 +191,22 @@ class MacroFeatureEngineer:
         result['bist100_roc_5d'] = self._calculate_roc(df['bist100'], 5)
         result['bist100_roc_20d'] = self._calculate_roc(df['bist100'], 20)
         result['bist100_roc_60d'] = self._calculate_roc(df['bist100'], 60)
+
+        # --- BIST100 REGIME FEATURES ---
+        # 200 günlük ortalama (uzun vadeli trend)
+        result["bist100_ma200"] = df["bist100"].rolling(200).mean()
+        # Fiyatın MA200'e göre uzaklığı
+        result["bist100_distance_ma200"] = result["bist100"] / result["bist100_ma200"] - 1.0
+
+        # Günlük getiriden volatilite
+        bist_ret_1d = result["bist100_roc_1d"]
+        result["bist100_vol_20d"] = bist_ret_1d.rolling(20).std()
+        result["bist100_vol_60d"] = bist_ret_1d.rolling(60).std()
+
+        # Vol regime: kısa/uzun oranı
+        ratio_bist_vol = result["bist100_vol_20d"] / result["bist100_vol_60d"]
+        result["bist100_vol_regime"] = ratio_bist_vol.replace([np.inf, -np.inf], np.nan)
+
         
         # ===================================================================
         # 4. TCMB Repo Rate Features
@@ -271,7 +303,12 @@ class MacroFeatureEngineer:
         ordered_cols = ['date']
         
         # USD/TRY block
-        ordered_cols.extend(['usd_try', 'usdtry_roc_1d', 'usdtry_roc_5d', 'usdtry_roc_20d'])
+        ordered_cols.extend([
+            'usd_try', 'usdtry_roc_1d', 'usdtry_roc_5d', 'usdtry_roc_20d',
+            'usdtry_ma200', 'usdtry_distance_ma200',
+            'usdtry_vol_20d', 'usdtry_vol_60d', 'usdtry_vol_regime'
+        ])
+
         
         # EUR/TRY block
         ordered_cols.extend(['eur_try', 'eurtry_roc_1d', 'eurtry_roc_5d', 'eurtry_roc_20d'])
@@ -280,8 +317,13 @@ class MacroFeatureEngineer:
         ordered_cols.extend(['eur_usd_implied', 'eur_usd_roc_1d'])
         
         # BIST100 block
-        ordered_cols.extend(['bist100', 'bist100_roc_1d', 'bist100_roc_5d', 
-                           'bist100_roc_20d', 'bist100_roc_60d'])
+        ordered_cols.extend([
+            'bist100', 'bist100_roc_1d', 'bist100_roc_5d', 
+            'bist100_roc_20d', 'bist100_roc_60d',
+            'bist100_ma200', 'bist100_distance_ma200',
+            'bist100_vol_20d', 'bist100_vol_60d', 'bist100_vol_regime'
+        ])
+
         
         # TCMB rate block
         ordered_cols.extend(['tcmb_repo', 'tcmb_rate_change', 'tcmb_rate_change_5d', 

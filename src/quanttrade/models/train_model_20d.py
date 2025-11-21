@@ -493,11 +493,53 @@ def run_pipeline():
     )
     final_model.fit(Pool(X_all_n, y_vec))
 
+    # ======================================================
+    # FEATURE IMPORTANCE (FINAL MODEL)
+    # ======================================================
+    print("\n>> Calculating feature importance (CatBoost)...")
 
+    # CatBoost'tan önem skorlarını çek
+    importances = final_model.get_feature_importance(Pool(X_all_n, y_vec))
+
+    fi_df = pd.DataFrame({
+        "feature": feature_names,
+        "importance": importances
+    }).sort_values("importance", ascending=False).reset_index(drop=True)
+
+    # En önemli ilk 30 feature'ı yazdır
+    print("\nTop 30 features by importance:")
+    print(fi_df.head(30).to_string(index=False))
+
+    # Özellikle rejim feature'larına bakalım
+    regime_cols = [
+        "macro_bist100_distance_ma200",
+        "macro_bist100_vol_regime",
+        "macro_usdtry_distance_ma200",
+        "macro_usdtry_vol_regime",
+        "price_distance_from_ma200",
+        "price_ma20_slope_5d",
+        "price_vol_regime",
+    ]
+
+    regime_fi = fi_df[fi_df["feature"].isin(regime_cols)]
+
+    print("\nRegime-related features importance:")
+    if regime_fi.empty:
+        print("⚠ Rejim feature'ları feature set içinde bulunamadı (isimler farklı olabilir).")
+    else:
+        print(regime_fi.to_string(index=False))
+
+    # Timestamp oluştur
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # İstersen CSV olarak da kaydedelim
+    fi_path = f"{RESULTS_DIR}/feature_importance_{ts}.csv"
+    fi_df.to_csv(fi_path, index=False)
+    print("\nFeature importance CSV kaydedildi:", fi_path)
 
     model_path = f"{RESULTS_DIR}/catboost_alpha20d_{ts}.cbm"
     final_model.save_model(model_path)
+    np.save(f"{RESULTS_DIR}/oof_pred_m1_{ts}.npy", oof_pred)
 
     neutralizer_path = f"{RESULTS_DIR}/neutralizer_alpha20d_{ts}.pkl"
     joblib.dump(

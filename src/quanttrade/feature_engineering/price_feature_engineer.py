@@ -74,6 +74,27 @@ class PriceFeatureEngineer:
         if df.empty:
             return None
         return df.sort_values("ex_date").reset_index(drop=True)
+    
+    def calculate_regime_features(self, df):
+        """
+        Rejim feature'ları:
+
+        - distance_from_ma200: (adj_close / sma_200) - 1
+          -> Hisse uzun vadeli trendine göre ne kadar yukarıda/aşağıda?
+
+        - ma20_slope_5d: sma_20'nin 5 günlük eğimi (yaklaşık momentum)
+          -> Kısa vadeli trend yukarı mı aşağı mı?
+
+        - vol_regime: vol_20d / vol_60d
+          -> Kısa vadeli vol uzun vadeye göre ne kadar yüksek?
+        """
+
+        # 1) MA200'dan uzaklık
+        if "sma_200" in df.columns:
+            df["distance_from_ma200"] = df["adj_close"] / df["sma_200"] - 1.0
+
+        return df
+   
 
     # ==========================================================
     # SPLIT NORMALIZATION (BIST STANDARD ✓)
@@ -215,7 +236,7 @@ class PriceFeatureEngineer:
     # ==========================================================
 
     def engineer_features(self, symbol):
-        logger.info(f"👉 İşleniyor: {symbol}")
+        logger.info(f" İşleniyor: {symbol}")
 
         df = self.load_ohlcv(symbol)
         if df is None:
@@ -230,6 +251,7 @@ class PriceFeatureEngineer:
         df = self.calculate_returns(df)
         df = self.calculate_volatility(df)
         df = self.calculate_sma(df)
+        df = self.calculate_regime_features(df) 
         df = self.calculate_rsi(df)
         df = self.calculate_macd(df)
         df = self.calculate_roc(df)
