@@ -86,9 +86,21 @@
     "market_future_return_120d",
     "market_future_return_60d",
     "market_future_return_90d",
+    "market_future_return_20d",
+    "market_future_return_30d",
+    "market_future_return_10d",
     "dataset_split"
   ],
   "target_columns": [
+    "future_return_10d",
+    "y_10d_up",
+    "y_10d_triclass",
+    "future_return_20d",
+    "y_20d_up",
+    "y_20d_triclass",
+    "future_return_30d",
+    "y_30d_up",
+    "y_30d_triclass",
     "future_return_60d",
     "y_60d_up",
     "y_60d_triclass",
@@ -100,7 +112,10 @@
     "y_120d_triclass",
     "alpha_120d",
     "alpha_60d",
-    "alpha_90d"
+    "alpha_90d",
+    "alpha_20d",
+    "alpha_30d",
+    "alpha_10d"
   ],
   "metadata_columns": [
     "period",

@@ -258,11 +258,7 @@ class MasterDataFrameBuilder:
     # ALPHA / MARKET FUTURE RETURN
     # ====================================================
     
-    def add_market_alpha(
-        self,
-        df: pd.DataFrame,
-        horizon: int = 120
-    ) -> pd.DataFrame:
+    def add_market_alpha(self,df: pd.DataFrame,horizon: int = 120) -> pd.DataFrame:
         """
         Add:
         - market_future_return_{horizon}d (BIST100'e göre)
@@ -617,9 +613,17 @@ class MasterDataFrameBuilder:
         master_df = self.build_master_dataframe(min_date=min_date, max_date=max_date)
         
         # Add market future return + alpha (120d)
+        
         master_df = self.add_market_alpha(master_df, horizon=120)
         master_df = self.add_market_alpha(master_df, horizon=60)
         master_df = self.add_market_alpha(master_df, horizon=90)
+        master_df = self.add_market_alpha(master_df, horizon=20)
+        master_df = self.add_market_alpha(master_df, horizon=30)
+        master_df = self.add_market_alpha(master_df, horizon=10)
+
+
+
+
         
         # Add dataset split
         if train_end_date and valid_end_date:

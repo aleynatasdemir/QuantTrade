@@ -32,7 +32,7 @@ PROCESSED_SPLIT_DIR = PROJECT_ROOT / "data" / "processed" / "split"
 PROCESSED_DIVIDEND_DIR = PROJECT_ROOT / "data" / "processed" / "dividend"
 FEATURES_PRICE_DIR = PROJECT_ROOT / "data" / "features" / "price"
 
-TARGET_HORIZONS = [60, 90, 120]
+TARGET_HORIZONS = [10,20,30,60, 90, 120]
 TRICLASS_THRESHOLD = 0.02
 
 
