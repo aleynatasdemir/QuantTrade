@@ -231,6 +231,42 @@ class PriceFeatureEngineer:
             )
         return df
 
+    def calculate_triple_barrier(self,df, horizon=20, tp=0.10, sl=-0.05):
+        """
+        Triple-Barrier Labeling:
+        tp : take-profit (örn +0.10)
+        sl : stop-loss (örn -0.05)
+        horizon : maksimum bekleme süresi (örn 20 gün)
+        """
+        df["y_triple_20d"] = 0  # varsayılan
+        close = df["adj_close"].values
+
+        for i in range(len(df) - horizon):
+            entry = close[i]
+            tp_level = entry * (1 + tp)
+            sl_level = entry * (1 + sl)
+
+            future_prices = close[i+1:i+horizon+1]
+
+            hit_tp = np.where(future_prices >= tp_level)[0]
+            hit_sl = np.where(future_prices <= sl_level)[0]
+
+            # 1) Take Profit önce geldiyse
+            if len(hit_tp) > 0 and (len(hit_sl) == 0 or hit_tp[0] < hit_sl[0]):
+                df.loc[i, "y_triple_20d"] = 1
+                continue
+
+            # 2) Stop-Loss önce geldiyse
+            if len(hit_sl) > 0 and (len(hit_tp) == 0 or hit_sl[0] < hit_tp[0]):
+                df.loc[i, "y_triple_20d"] = 0
+                continue
+
+            # 3) Zaman dolduysa
+            final_ret = (future_prices[-1] / entry) - 1
+            df.loc[i, "y_triple_20d"] = int(final_ret > 0)
+
+        return df
+
     # ==========================================================
     # MAIN FEATURE ENGINEERING
     # ==========================================================
@@ -259,7 +295,7 @@ class PriceFeatureEngineer:
         df = self.calculate_obv(df)
 
         df = self.calculate_targets(df)
-
+        df = self.calculate_triple_barrier(df, horizon=20, tp=0.10, sl=-0.05)
         out = FEATURES_PRICE_DIR / f"{symbol}_price_features.csv"
         df.to_csv(out, index=False)
         logger.info(f"✓ Kaydedildi → {out}")
