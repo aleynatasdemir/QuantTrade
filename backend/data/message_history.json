@@ -148,5 +148,25 @@
     "timestamp": "13:06",
     "date": "2025-11-26",
     "status": "SENT"
+  },
+  {
+    "id": 16,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "selam",
+    "timestamp": "23:46",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 17,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "selam",
+    "timestamp": "23:46",
+    "date": "2025-11-26",
+    "status": "SENT"
   }
 ]

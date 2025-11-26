@@ -33,13 +33,21 @@ export const portfolioAPI = {
 
 // Pipeline API
 export const pipelineAPI = {
-  run: async (script: 'pipeline' | 'portfolio_manager' = 'pipeline') => {
+  run: async (script_type: string = 'pipeline') => {
     const response = await fetch(`${API_BASE_URL}/api/pipeline/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ script }),
+      body: JSON.stringify({ script: script_type })
     });
-    if (!response.ok) throw new Error('Failed to run pipeline');
+    if (!response.ok) throw new Error('Failed to start pipeline');
+    return response.json();
+  },
+
+  stop: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/pipeline/stop`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to stop pipeline');
     return response.json();
   },
 

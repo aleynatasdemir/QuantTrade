@@ -280,14 +280,20 @@ class EVDSClient:
             "TP.OECDONCU.USA": 5,
         }
         
-        for friendly_name, evds_code in series_mapping.items():
-            logger.info(f"Çekiliyor: {friendly_name} ({evds_code})")
+        
+        total_series = len(series_mapping)
+        successful_series = 0
+        
+        for idx, (friendly_name, evds_code) in enumerate(series_mapping.items(), 1):
+            # Compact log - sadece ilerleme
+            if idx == 1 or idx == total_series:
+                logger.info(f"📊 EVDS {idx}/{total_series} seri çekiliyor...")
             
             try:
                 # Seri için uygun frekansı belirle
                 freq = series_frequencies.get(evds_code, 1)  # Varsayılan: Günlük
                 
-                # İlk önce varsayılan frekansla dene
+                # Veri çek
                 df_series = self.fetch_series(
                     series_codes=evds_code,
                     start_date=start_date,
@@ -296,25 +302,25 @@ class EVDSClient:
                 )
                 
                 if df_series.empty:
-                    logger.warning(f"{friendly_name} için veri çekilemedi, atlanıyor")
+                    logger.warning(f"⚠️  {friendly_name} - Veri yok")
                     continue
                 
                 # Kolon adını düzenle
                 if len(df_series.columns) == 1:
                     df_series.columns = [friendly_name]
                 else:
-                    # Birden fazla kolon varsa ilkini al
                     df_series = df_series.iloc[:, 0:1]
                     df_series.columns = [friendly_name]
                 
-                # Ana DataFrame'e ekle (reindex ile tüm tarihlere uygula)
+                # Ana DataFrame'e ekle
                 df_combined = df_combined.join(df_series, how='left')
-                
-                logger.info(f"✓ {friendly_name}: {len(df_series)} satır eklendi")
+                successful_series += 1
                 
             except Exception as e:
-                logger.error(f"✗ {friendly_name} çekilirken hata: {e}")
+                logger.error(f"❌ {friendly_name} - {str(e)[:50]}")
                 continue
+        
+        logger.info(f"✅ EVDS: {successful_series}/{total_series} seri başarılı")
         
         if df_combined.empty or df_combined.shape[1] == 0:
             logger.warning("Hiç veri çekilemedi")

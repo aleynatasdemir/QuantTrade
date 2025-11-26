@@ -13,12 +13,19 @@ Her step sonrası output dosyaları otomatik kontrol edilir.
 
 import subprocess
 import sys
+import os
 import logging
 from pathlib import Path
 from typing import List, Dict, Callable, Optional
+from datetime import datetime, timedelta
+
+# Add src to Python path for quanttrade imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 import glob
 import pandas as pd
+
+
 
 # -------------------------------------------------------------------
 # Logging

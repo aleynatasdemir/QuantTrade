@@ -6,6 +6,7 @@ Bu modül proje genelinde kullanılan ayarları ve yolları yönetir.
 import os
 from pathlib import Path
 from typing import Dict, Any
+from datetime import datetime
 import toml
 from dotenv import load_dotenv
 
@@ -68,15 +69,32 @@ def load_settings() -> Dict[str, Any]:
     return settings
 
 
-def get_evds_settings() -> Dict[str, Any]:
+def get_evds_settings() -> Dict:
     """
-    EVDS ile ilgili ayarları getirir.
-    
-    Returns:
-        Dict[str, Any]: EVDS ayarlarını içeren sözlük
+    EVDS ayarlarını döndürür.
+    end_date otomatik olarak bugünün tarihine güncellenir.
     """
     settings = load_settings()
-    return settings.get("evds", {})
+    evds_config = settings.get("evds", {})
+    
+    # end_date'i bugüne güncelle
+    evds_config["end_date"] = datetime.now().strftime("%Y-%m-%d")
+    
+    return evds_config
+
+
+def get_stocks_settings() -> Dict:
+    """
+    Hisse senedi ayarlarını döndürür.
+    end_date otomatik olarak bugünün tarihine güncellenir.
+    """
+    settings = load_settings()
+    stocks_config = settings.get("stocks", {})
+    
+    # end_date'i bugüne güncelle
+    stocks_config["end_date"] = datetime.now().strftime("%Y-%m-%d")
+    
+    return stocks_config
 
 
 def get_stock_symbols() -> list:
@@ -86,22 +104,21 @@ def get_stock_symbols() -> list:
     Returns:
         list: Hisse sembolleri listesi
     """
-    settings = load_settings()
-    stocks_config = settings.get("stocks", {})
+    stocks_config = get_stocks_settings()
     return stocks_config.get("symbols", [])
 
 
 def get_stock_date_range() -> tuple:
     """
     Hisse verileri için tarih aralığını config'den getirir.
+    end_date otomatik olarak bugüne güncellenir.
     
     Returns:
         tuple: (start_date, end_date) tuple'ı
     """
-    settings = load_settings()
-    stocks_config = settings.get("stocks", {})
+    stocks_config = get_stocks_settings()  # Otomatik end_date güncellemesi
     start_date = stocks_config.get("start_date", "2020-01-01")
-    end_date = stocks_config.get("end_date", "2025-11-17")
+    end_date = stocks_config.get("end_date", datetime.now().strftime("%Y-%m-%d"))
     return start_date, end_date
 
 

@@ -22,6 +22,13 @@ async def run_pipeline(request: PipelineRunRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/stop")
+async def stop_pipeline():
+    """Stop running pipeline"""
+    result = await pipeline_service.stop_pipeline()
+    return result
+
+
 @router.get("/status", response_model=PipelineStatus)
 async def get_pipeline_status():
     """Get current pipeline execution status"""

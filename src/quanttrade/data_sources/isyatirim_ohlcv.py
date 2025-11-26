@@ -112,29 +112,30 @@ def fetch_ohlcv_from_isyatirim(
     start_str = start_dt.strftime("%d-%m-%Y")
     end_str = end_dt.strftime("%d-%m-%Y")
     
+    
     logger.info(f"{'='*60}")
-    logger.info(f"İş Yatırım OHLCV Veri Çekme (60sn RETRY MODU)")
-    logger.info(f"Semboller: {len(symbols)} adet")
+    logger.info(f"İş Yatırım OHLCV Veri Çekme")
+    logger.info(f"Toplam: {len(symbols)} sembol")
     logger.info(f"{'='*60}")
     
-    success_count = 0
-    error_count = 0
-    errors = []
+    successful = 0
+    failed = 0
+    BATCH_SIZE = 20  # Her 20 hissede bir log
     
-    # --- GÜNCELLENMİŞ RETRY AYARLARI ---
-    MAX_RETRIES = 3       # 3 kere dene
-    BASE_WAIT = 60        # 🛑 BURAYI DEĞİŞTİRDİK: Hata alırsa en az 60 saniye bekle!
+    MAX_RETRIES = 3
+    BASE_WAIT = 60
     
-    for i, symbol in enumerate(symbols, 1):
-        logger.info(f"[{i}/{len(symbols)}] {symbol} çekiliyor...")
+    for idx, symbol in enumerate(symbols, 1):
+        # Batch progress log (her 20'de bir veya son hisse)
+        if idx % BATCH_SIZE == 1 or idx == len(symbols):
+            end_idx = min(idx + BATCH_SIZE - 1, len(symbols))
+            logger.info(f"📊 OHLCV {idx}-{end_idx}/{len(symbols)} işleniyor...")
         
         success = False
         last_error = None
         
-        # --- RETRY LOOP ---
         for attempt in range(MAX_RETRIES):
             try:
-                # Veri Çekme
                 df = fetch_stock_data(
                     symbols=symbol,
                     start_date=start_str,
@@ -143,46 +144,37 @@ def fetch_ohlcv_from_isyatirim(
                 )
                 
                 if df is None or df.empty:
-                     # "No data found" durumu
-                     raise ValueError("Boş veri döndü (Olası Rate Limit).")
-
+                    raise ValueError("Boş veri")
+                
                 df_standard = standardize_ohlcv_dataframe(df, symbol)
                 
                 if df_standard.empty:
-                    raise ValueError("Veri standardize edilemedi.")
+                    raise ValueError("Veri standardize edilemedi")
                 
-                # Kaydet
+                # Save
                 output_file = output_path / f"{symbol}_ohlcv_isyatirim.csv"
                 df_standard.to_csv(output_file, index=True, encoding='utf-8')
-                logger.info(f"✓ {symbol}: OK ({len(df_standard)} satır)")
                 
                 success = True
-                success_count += 1
-                break  # Başarılıysa çık
+                successful += 1
+                break
             
             except Exception as e:
-                last_error = str(e)
-                
-                # Hata alınca 60 saniye + rastgele 1-5 sn bekle
-                # Her denemede biraz daha arttır (60s, 70s, 80s gibi)
+                last_error = str(e)[:50]
                 wait_time = BASE_WAIT + (attempt * 10) + random.uniform(1, 5)
                 
                 if attempt < MAX_RETRIES - 1:
-                    logger.warning(f"⚠️ {symbol} Hata (Deneme {attempt+1}/{MAX_RETRIES}): {e}")
-                    logger.warning(f"⏳ {wait_time:.1f}s bekleniyor (Rate Limit Soğuması)...")
-                    time.sleep(wait_time) # 1 dakika bekle
+                    time.sleep(wait_time)
                 else:
-                    logger.error(f"✗ {symbol}: BAŞARISIZ! (Son Hata: {e})")
+                    # Sadece hatalı olanları logla
+                    logger.error(f"❌ {symbol} - {last_error}")
         
         if not success:
-            error_count += 1
-            errors.append((symbol, last_error))
+            failed += 1
         
-        # Başarılı olsa bile her hisse arasında 2-3 saniye bekle (Koruma)
-        if i < len(symbols):
+        # Rate limit between stocks
+        if idx < len(symbols):
             time.sleep(rate_limit_delay + random.uniform(1.0, 3.0))
     
     logger.info(f"{'='*60}")
-    logger.info(f"Tamamlandı. Başarılı: {success_count} | Hata: {error_count}")
-    if errors:
-        logger.info(f"Hatalı Hisseler: {', '.join([e[0] for e in errors])}")
+    logger.info(f"✅ Tamamlandı: {successful} başarılı, {failed} hatalı")

@@ -107,7 +107,13 @@ class PipelineService:
                 "message": f"Script not found: {script_path}"
             }
         
-        # Create temp log file
+        # Create temp log file (delete old one first)
+        if self.log_file_path and self.log_file_path.exists():
+            try:
+                self.log_file_path.unlink()  # Eski log'u sil
+            except Exception:
+                pass
+        
         temp_log = tempfile.NamedTemporaryFile(
             mode='w',
             prefix=f'pipeline_{script_type}_',
@@ -139,10 +145,17 @@ class PipelineService:
                 cwd = str(self.project_root)
             
             # Run in appropriate directory
+            import os
+
+            # Environment variables hazırla
+            env = os.environ.copy()
+            env['PYTHONPATH'] = '/root/Quanttrade/src:' + env.get('PYTHONPATH', '')
+
             self.current_process = await asyncio.create_subprocess_exec(
                 sys.executable,
                 str(script_path),
                 cwd=cwd,
+                env=env,  # ← ENV EKLE
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
@@ -166,6 +179,60 @@ class PipelineService:
                 "status": "error",
                 "message": f"Failed to start pipeline: {str(e)}"
             }
+    
+    async def stop_pipeline(self) -> Dict[str, str]:
+        """Stop running pipeline process"""
+        if self.current_process is None:
+            # Force reset in case state is stuck
+            self.status = PipelineStatus(status="idle")
+            self._save_status()
+            return {
+                "status": "stopped",
+                "message": "No pipeline was running (state reset)"
+            }
+        
+        try:
+            # Terminate the process
+            try:
+                self.current_process.terminate()
+                await asyncio.wait_for(self.current_process.wait(), timeout=3.0)
+            except asyncio.TimeoutError:
+                # Force kill if it doesn't stop
+                self.current_process.kill()
+                await self.current_process.wait()
+            except Exception:
+                pass
+            
+            # Update status
+            self.status = PipelineStatus(
+                status="stopped",
+                started_at=self.status.started_at if self.status else None,
+                completed_at=datetime.now().isoformat(),
+                error="Stopped by user"
+            )
+            self._save_status()
+            
+            # Clear process reference
+            self.current_process = None
+            self.job_id = None
+            
+            return {
+                "status": "stopped",
+                "message": "Pipeline stopped successfully"
+            }
+            
+        except Exception as e:
+            # Force cleanup even on error
+            self.current_process = None
+            self.job_id = None
+            self.status = PipelineStatus(status="idle")
+            self._save_status()
+            
+            return {
+                "status": "error",
+                "message": f"Pipeline stopped with error: {str(e)}"
+            }
+    
     
     async def _read_stream(self, stream, log_file):
         """Read stream line by line and write to log file"""
@@ -233,32 +300,36 @@ class PipelineService:
         """Get current pipeline status"""
         return self.status
     
-    def get_logs(self, since_line: int = 0) -> Dict[str, any]:
-        """Get pipeline logs from specific line number"""
+    def get_logs(self, since_line: int = 0) -> Dict:
+        """Get logs from file starting from specific line"""
         if not self.log_file_path or not self.log_file_path.exists():
             return {
-                "logs": "",
-                "total_lines": 0,
-                "since_line": since_line
+                "lines": [],
+                "total_lines": 0
             }
         
         try:
             with open(self.log_file_path, 'r', encoding='utf-8') as f:
                 all_lines = f.readlines()
             
-            # Return lines from since_line onwards
+            # Get only new lines since last fetch
             new_lines = all_lines[since_line:]
             
+            # Strip newlines
+            new_lines = [line.rstrip('\n') for line in new_lines]
+            
             return {
-                "logs": ''.join(new_lines),
-                "total_lines": len(all_lines),
-                "since_line": since_line
+                "lines": new_lines,
+                "total_lines": len(all_lines)
             }
         except Exception as e:
+            # Assuming 'logger' is defined elsewhere or will be imported
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to read logs: {e}")
             return {
-                "logs": f"Error reading logs: {e}",
-                "total_lines": 0,
-                "since_line": since_line
+                "lines": [],
+                "total_lines": 0
             }
 
 
