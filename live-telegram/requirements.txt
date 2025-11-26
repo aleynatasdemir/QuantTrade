@@ -1,0 +1,8 @@
+pandas
+numpy
+matplotlib
+joblib
+catboost
+python-telegram-bot==21.4
+python-dotenv
+requests

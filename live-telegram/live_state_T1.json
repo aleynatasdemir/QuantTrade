@@ -1,0 +1,32 @@
+{
+  "cash": 15000.0,
+  "positions": [],
+  "pending_buys": [
+    {
+      "symbol": "OZKGY",
+      "planned_capital": 3000.0,
+      "decision_date": "2025-11-25"
+    },
+    {
+      "symbol": "AEFES",
+      "planned_capital": 3000.0,
+      "decision_date": "2025-11-25"
+    },
+    {
+      "symbol": "GUBRF",
+      "planned_capital": 3000.0,
+      "decision_date": "2025-11-25"
+    },
+    {
+      "symbol": "ODAS",
+      "planned_capital": 3000.0,
+      "decision_date": "2025-11-25"
+    },
+    {
+      "symbol": "AGHOL",
+      "planned_capital": 3000.0,
+      "decision_date": "2025-11-25"
+    }
+  ],
+  "last_date": "2025-11-25"
+}
