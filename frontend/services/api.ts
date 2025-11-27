@@ -132,3 +132,13 @@ export const telegramAPI = {
     return response.json();
   },
 };
+
+// GPT Analysis API
+export const gptAPI = {
+  getAnalysis: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/gpt/analysis`);
+    if (!response.ok) throw new Error('Failed to fetch GPT analysis');
+    return response.json();
+  },
+};
+

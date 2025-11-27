@@ -168,5 +168,25 @@
     "timestamp": "23:46",
     "date": "2025-11-26",
     "status": "SENT"
+  },
+  {
+    "id": 18,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "naber",
+    "timestamp": "23:47",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 19,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": " o gülücüğü götüne sokarm",
+    "timestamp": "23:52",
+    "date": "2025-11-26",
+    "status": "SENT"
   }
 ]

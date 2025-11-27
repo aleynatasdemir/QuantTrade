@@ -1,9 +1,9 @@
 {
   "status": "running",
-  "started_at": "2025-11-26T23:42:41.497824",
+  "started_at": "2025-11-27T03:51:00.221576",
   "completed_at": null,
-  "progress": "2025-11-26 23:42:47,336 - INFO - \u25b6 STEP: ISYATIRIM_OHLCV_DOWNLOADER",
+  "progress": "File \"/Users/furkanyilmaz/Desktop/QuantTrade/run_daily_pipeline.py\", line 413, in run_step",
   "error": null,
-  "job_id": "pipeline_20251126_234241",
-  "log_file_path": "/var/folders/_t/krfvqknj5_x1hjk99qw9nzcr0000gn/T/pipeline_pipeline_x4ex6w78.log"
+  "job_id": "pipeline_20251127_035100",
+  "log_file_path": "/var/folders/_t/krfvqknj5_x1hjk99qw9nzcr0000gn/T/pipeline_pipeline_33o4ylo5.log"
 }

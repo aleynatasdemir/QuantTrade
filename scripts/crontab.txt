@@ -1,0 +1,20 @@
+# QuantTrade VDS Cron Jobs Setup
+# Copy these lines to your crontab with: crontab -e
+
+# Log directory (create if needed)
+# mkdir -p /var/log/quanttrade
+
+# Daily Portfolio V2 Update - 21:30 (Weekdays)
+30 21 * * 1-5 /root/Quanttrade/scripts/cron_portfolio_v2.sh >> /var/log/quanttrade/portfolio_v2.log 2>&1
+
+# GPT Snapshot Generator - 09:40 (Weekdays)
+40 21 * * 1-5 /root/Quanttrade/scripts/cron_gpt_snapshot.sh >> /var/log/quanttrade/gpt_snapshot.log 2>&1
+
+# GPT Analysis Runner - 09:45 (Weekdays)
+45 21 * * 1-5 /root/Quanttrade/scripts/cron_gpt_analyze.sh >> /var/log/quanttrade/gpt_analyze.log 2>&1
+
+# GPT Telegram Broadcast - 09:50 (Weekdays)
+50 21 * * 1-5 /root/Quanttrade/scripts/cron_gpt_telegram.sh >> /var/log/quanttrade/gpt_telegram.log 2>&1
+
+# Optional: Daily log cleanup (keeps last 30 days)
+# 0 2 * * * find /var/log/quanttrade -name "*.log" -mtime +30 -delete

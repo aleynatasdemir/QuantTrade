@@ -8,6 +8,7 @@ import { TelegramView } from './components/TelegramView';
 import { SettingsView } from './components/SettingsView';
 import { LoginView } from './components/LoginView';
 import { PositionsTable } from './components/PositionsTable';
+import { GPTAnalysis } from './components/GPTAnalysis';
 import { portfolioAPI, pipelineAPI } from './services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { LayoutDashboard, Settings, Layers, Send, LogOut, Menu, Play, RefreshCw, Terminal } from 'lucide-react';
@@ -306,14 +307,14 @@ function App() {
             )}
 
             {/* Positions Table */}
-            <div className="mb-8">
-              <PositionsTable positions={data.positions} />
-            </div>
+            <PositionsTable positions={data?.positions || []} />
 
-            {/* Middle Section: Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            {/* GPT Analysis */}
+            <GPTAnalysis />
 
-              {/* Main Equity Curve */}
+            {/* Bottom Row: Equity Chart + Capital Allocation */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {/* Equity Curve */}
               <div className="lg:col-span-2 bg-zinc-900 border border-white/5 rounded-2xl p-4 md:p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                   <div>

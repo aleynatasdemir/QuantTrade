@@ -4,7 +4,7 @@ FastAPI Main Application
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-from api.routes import portfolio, pipeline, telegram
+from api.routes import portfolio, pipeline, telegram, gpt
 
 # Create FastAPI app
 app = FastAPI(
@@ -26,6 +26,7 @@ app.add_middleware(
 app.include_router(portfolio.router)
 app.include_router(pipeline.router)
 app.include_router(telegram.router)
+app.include_router(gpt.router)
 
 
 @app.get("/")

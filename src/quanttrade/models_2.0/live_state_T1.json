@@ -7,7 +7,9 @@
       "shares": 400,
       "entry_date": "2025-11-25",
       "days_held": 2,
-      "current_price": 7.24
+      "current_price": 7.24,
+      "exit_planned": false,
+      "exit_reason_planned": null
     },
     {
       "symbol": "KMPUR",
@@ -15,7 +17,9 @@
       "shares": 200,
       "entry_date": "2025-11-25",
       "days_held": 2,
-      "current_price": 15.0
+      "current_price": 15.0,
+      "exit_planned": false,
+      "exit_reason_planned": null
     },
     {
       "symbol": "TRALT",
@@ -23,7 +27,9 @@
       "shares": 79,
       "entry_date": "2025-11-25",
       "days_held": 2,
-      "current_price": 37.84
+      "current_price": 37.84,
+      "exit_planned": false,
+      "exit_reason_planned": null
     },
     {
       "symbol": "GWIND",
@@ -31,7 +37,9 @@
       "shares": 131,
       "entry_date": "2025-11-25",
       "days_held": 2,
-      "current_price": 22.28
+      "current_price": 22.28,
+      "exit_planned": false,
+      "exit_reason_planned": null
     },
     {
       "symbol": "HUNER",
@@ -39,7 +47,9 @@
       "shares": 862,
       "entry_date": "2025-11-25",
       "days_held": 2,
-      "current_price": 3.41
+      "current_price": 3.41,
+      "exit_planned": false,
+      "exit_reason_planned": null
     }
   ],
   "pending_buys": [],
