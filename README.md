@@ -18,6 +18,7 @@ QuantTrade is a complete algorithmic trading system that:
 
 ### System Architecture
 
+
 ![Architecture Diagram](architecture.png)
 
 ### System Components
@@ -523,8 +524,6 @@ This project is proprietary software. All rights reserved.
 
 - **Developer**: Furkan Yılmaz
 - **Telegram**: @quant_trade_robot
-- **Email**: furkanyl509.com
-il.com
 ---
 
 ## 🙏 Acknowledgments
