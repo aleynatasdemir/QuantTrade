@@ -251,6 +251,36 @@ class MasterDataFrameBuilder:
         df = df.rename(columns=rename_dict)
         
         return df
+
+    def load_kap_features(self, symbol: str) -> Optional[pd.DataFrame]:
+        """
+        Load KAP features for a symbol.
+        """
+        kap_file = self.base_path / "data" / "processed" / "kap" / f"{symbol}_predictions.csv"
+
+        if not kap_file.exists():
+            logger.warning(f"  KAP features not found for {symbol}")
+            return None
+
+        df = pd.read_csv(kap_file)
+
+        # Prefix all non-date/symbol cols
+        rename_map = {}
+        for col in df.columns:
+            if col not in ["symbol", "tarih", "date"]:
+                rename_map[col] = f"kap_{col}"
+
+        df = df.rename(columns=rename_map)
+
+        # unify tarih -> date
+        if "tarih" in df.columns:
+            df["date"] = pd.to_datetime(df["tarih"])
+            df = df.drop(columns=["tarih"])
+        else:
+            df["date"] = pd.to_datetime(df["date"])
+
+        return df
+
     
     # ====================================================
     # MERGE HELPERS
@@ -328,6 +358,20 @@ class MasterDataFrameBuilder:
         )
         
         logger.info(f"  After macro merge: {len(merged)} rows")
+
+        kap_df = self.load_kap_features(symbol)
+
+        if kap_df is not None:
+            logger.info("  Merging with KAP features...")
+            merged = pd.merge(
+                merged,
+                kap_df,
+                on=["symbol", "date"],
+                how="left"
+            )
+            logger.info(f"  After KAP merge: {len(merged)} rows")
+        else:
+            logger.info("  No KAP features found")
         
         # Load and merge fundamental features
         fundamental_df = self.load_fundamental_features(symbol)

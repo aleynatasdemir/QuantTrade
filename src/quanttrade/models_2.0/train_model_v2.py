@@ -25,8 +25,10 @@ from catboost import CatBoostClassifier, Pool
 # ============================
 # CONFIG
 # ============================
-DATA_PATH = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_20d"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+DATA_PATH = os.path.join(PROJECT_ROOT, "data", "master", "master_df.csv")
+RESULTS_DIR = os.path.join(SCRIPT_DIR, "model_results_alpha_20d")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
 SYMBOL_COL = "symbol"
@@ -125,6 +127,8 @@ def select_features(df):
     drop_cols |= {
         "price_open", "price_high", "price_low", "price_adj_close"
     }
+    # kap_category ayrı işlenecek (one-hot)
+    drop_cols.add("kap_category")
 
     features = [
         c for c in df.columns
@@ -133,6 +137,13 @@ def select_features(df):
 
     X = df[features].replace([np.inf, -np.inf], np.nan)
     X = X.fillna(X.median())
+    
+    # kap_category one-hot encoding
+    if "kap_category" in df.columns:
+        kap_dummies = pd.get_dummies(df["kap_category"].fillna("UNKNOWN"), prefix="kap_cat")
+        X = pd.concat([X, kap_dummies], axis=1)
+        features = X.columns.tolist()
+    
     return X, features
 
 
@@ -246,6 +257,45 @@ def run_pipeline():
     final_model.fit(X_final, y)
 
     ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    # === FEATURE IMPORTANCE ===
+    print("\n>> Calculating Feature Importance...")
+    feature_importance = final_model.get_feature_importance()
+    fi_df = pd.DataFrame({
+        "feature": feature_names,
+        "importance": feature_importance
+    }).sort_values("importance", ascending=False)
+    
+    fi_df.to_csv(f"{RESULTS_DIR}/feature_importance_{ts}.csv", index=False)
+    
+    # Top 30 feature importance plot
+    plt.figure(figsize=(12, 10))
+    top_n = 30
+    fi_top = fi_df.head(top_n)
+    
+    # KAP feature'ları vurgula
+    colors = ['#e74c3c' if 'kap_' in f else '#3498db' for f in fi_top['feature']]
+    
+    plt.barh(range(len(fi_top)), fi_top['importance'].values, color=colors)
+    plt.yticks(range(len(fi_top)), fi_top['feature'].values)
+    plt.xlabel('Importance')
+    plt.title(f'Top {top_n} Feature Importance (Red = KAP Features)')
+    plt.gca().invert_yaxis()
+    plt.tight_layout()
+    plt.savefig(f"{RESULTS_DIR}/feature_importance_{ts}.png", dpi=150)
+    plt.close()
+    
+    # KAP features summary
+    kap_features = fi_df[fi_df['feature'].str.contains('kap_')]
+    print(f"\n=== KAP FEATURES IMPORTANCE ===")
+    print(f"Toplam KAP feature: {len(kap_features)}")
+    if not kap_features.empty:
+        print(f"KAP features toplam importance: {kap_features['importance'].sum():.2f}")
+        print(f"\nTop KAP features:")
+        print(kap_features.head(10).to_string(index=False))
+    
+    print(f"\n=== TOP 20 FEATURES ===")
+    print(fi_df.head(20).to_string(index=False))
 
     print("\n>> Saving FINAL MODEL...")
     final_model.save_model(f"{RESULTS_DIR}/catboost_alpha20d_{ts}.cbm")

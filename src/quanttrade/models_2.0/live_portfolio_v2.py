@@ -31,6 +31,9 @@ from catboost import CatBoostClassifier
 
 from train_model import SectorStandardScaler  # sadece scaler gerekiyor
 
+# KAP kategorileri (train ile aynı sırada)
+KAP_CATEGORIES = ["FINANSAL_RAPOR", "GENEL_BILGI", "ILISKILI_TARAF", "SERMAYE_TEMETTU", "UNKNOWN", "YATIRIM_SOZLESME"]
+
 # ========================
 # CONFIG
 # ========================
@@ -138,6 +141,34 @@ def compute_stop_exit(entry_price, stop_pct, today_row):
     return False, None, None
 
 
+def compute_tp_exit(entry_price, tp_pct, today_row):
+    """
+    Take-profit tetiklenmiş mi? (Gün içi %10'a ulaştıysa anında sat)
+
+    - Gap + intraday:
+      * Eğer open TP seviyesinin üstündeyse → gap'te TP
+      * Eğer gün içi high TP seviyesine ulaştıysa → TP seviyesinden çık
+    """
+    tp_level = entry_price * (1.0 + tp_pct)
+
+    today_open = today_row[OPEN_COL]
+    today_high = today_row[HIGH_COL]
+
+    # 1) Gap'te TP
+    if today_open >= tp_level:
+        exit_price = today_open
+        reason = "TAKE_PROFIT"
+        return True, exit_price, reason
+
+    # 2) Gün içi high TP seviyesine ulaştıysa
+    if today_high >= tp_level:
+        exit_price = tp_level
+        reason = "TAKE_PROFIT"
+        return True, exit_price, reason
+
+    return False, None, None
+
+
 def calculate_stagnation_indicators(df: pd.DataFrame) -> pd.DataFrame:
     """
     Durgunluk (stagnation) ve göreli zayıflık (RS weakness) sinyalleri.
@@ -204,6 +235,21 @@ def main():
     print(">> Loading data...")
     df = pd.read_csv(DATA_PATH)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
+
+    # KAP one-hot encoding (train ile aynı)
+    if "kap_category" in df.columns:
+        for cat in KAP_CATEGORIES:
+            col_name = f"kap_cat_{cat}"
+            df[col_name] = (df["kap_category"] == cat).astype(int)
+    
+    # Eksik KAP kolonlarını 0 ile doldur (model bunları bekliyor)
+    kap_numeric_cols = ["kap_sentiment", "kap_volatility", "kap_is_related_party", "kap_currency_impact"]
+    kap_cat_cols = [f"kap_cat_{cat}" for cat in KAP_CATEGORIES]
+    all_kap_cols = kap_numeric_cols + kap_cat_cols
+    
+    for col in all_kap_cols:
+        if col not in df.columns:
+            df[col] = 0
 
     # Durgunluk + RS indikatörleri
     df = calculate_stagnation_indicators(df)
@@ -385,7 +431,35 @@ def main():
                 positions.pop(i)
                 continue  # sıradaki pozisyona geç
 
-            # ---- STOP olmadıysa model bazlı kararlar (T+1 satış planı) ----
+            # ---- TAKE-PROFIT (aynı gün, %10'a ulaştığında anında sat) ----
+            tp_flag, tp_exit_price, tp_reason = compute_tp_exit(
+                entry_price, TAKE_PROFIT_PCT, row
+            )
+
+            if tp_flag:
+                revenue = pos["shares"] * tp_exit_price
+                comm = revenue * COMMISSION
+                net_revenue = revenue - comm
+                cash += net_revenue
+
+                trade_ret = (tp_exit_price / entry_price) - 1.0
+
+                trade_rows.append({
+                    "entry_date": pos["entry_date"],
+                    "exit_date": today.strftime("%Y-%m-%d"),
+                    "symbol": sym,
+                    "entry_price": entry_price,
+                    "exit_price": float(tp_exit_price),
+                    "shares": int(pos["shares"]),
+                    "return": float(trade_ret),
+                    "reason": tp_reason,
+                    "days_held": int(pos["days_held"])
+                })
+
+                positions.pop(i)
+                continue  # sıradaki pozisyona geç
+
+            # ---- STOP/TP olmadıysa model bazlı kararlar (T+1 satış planı) ----
             days = int(pos["days_held"])
             ret_close = (close_price / entry_price) - 1.0
 
@@ -413,10 +487,7 @@ def main():
                 exit_planned = True
                 exit_reason_planned = "TIME_EXIT"
 
-            # E) Model Take Profit (TP) – kâr %10 üstünde ve model artık top listede değilse
-            if (not exit_planned) and (ret_close >= TAKE_PROFIT_PCT) and (sym not in top_symbols):
-                exit_planned = True
-                exit_reason_planned = "MODEL_TP"
+            # E) Model Take Profit artık gün içi yapıldığı için kaldırıldı
 
             if exit_planned:
                 pos["exit_planned"] = True
@@ -452,10 +523,79 @@ def main():
         state["last_date"] = today.strftime("%Y-%m-%d")
 
     # ============================
+    # 1.5) REFERANS GÜN İÇİN TP/SL KONTROLÜ (new_dates boşsa bile çalışsın)
+    # ============================
+    ref_data = grouped.get_group(ref_date).set_index(SYMBOL_COL)
+    
+    # Bugünün TOP_K listesi
+    ref_sorted = ref_data.sort_values("score", ascending=False)
+    top_symbols_ref = set(ref_sorted.head(TOP_K).index)
+    
+    # Mevcut pozisyonlara TP/SL kontrolü
+    for i in range(len(positions) - 1, -1, -1):
+        pos = positions[i]
+        sym = pos["symbol"]
+        
+        if pos.get("exit_planned", False):
+            continue
+            
+        if sym not in ref_data.index:
+            continue
+        
+        row = ref_data.loc[sym]
+        entry_price = float(pos["entry_price"])
+        
+        # STOP-LOSS kontrolü
+        exit_flag, exit_price, reason = compute_stop_exit(entry_price, STOP_LOSS_PCT, row)
+        
+        if exit_flag:
+            revenue = pos["shares"] * exit_price
+            comm = revenue * COMMISSION
+            cash += revenue - comm
+            
+            trade_ret = (exit_price / entry_price) - 1.0
+            trade_rows.append({
+                "entry_date": pos["entry_date"],
+                "exit_date": ref_date.strftime("%Y-%m-%d"),
+                "symbol": sym,
+                "entry_price": entry_price,
+                "exit_price": float(exit_price),
+                "shares": int(pos["shares"]),
+                "return": float(trade_ret),
+                "reason": reason,
+                "days_held": int(pos["days_held"])
+            })
+            positions.pop(i)
+            print(f"  >> {sym} STOP_LOSS tetiklendi! Çıkış: {exit_price:.2f}")
+            continue
+        
+        # TAKE-PROFIT kontrolü
+        tp_flag, tp_exit_price, tp_reason = compute_tp_exit(entry_price, TAKE_PROFIT_PCT, row)
+        
+        if tp_flag:
+            revenue = pos["shares"] * tp_exit_price
+            comm = revenue * COMMISSION
+            cash += revenue - comm
+            
+            trade_ret = (tp_exit_price / entry_price) - 1.0
+            trade_rows.append({
+                "entry_date": pos["entry_date"],
+                "exit_date": ref_date.strftime("%Y-%m-%d"),
+                "symbol": sym,
+                "entry_price": entry_price,
+                "exit_price": float(tp_exit_price),
+                "shares": int(pos["shares"]),
+                "return": float(trade_ret),
+                "reason": tp_reason,
+                "days_held": int(pos["days_held"])
+            })
+            positions.pop(i)
+            print(f"  >> {sym} TAKE_PROFIT tetiklendi! Çıkış: {tp_exit_price:.2f} (+%10)")
+            continue
+
+    # ============================
     # 2) REFERANS GÜN İÇİN YARININ ALIM ÖNERİLERİ
     # ============================
-
-    ref_data = grouped.get_group(ref_date).set_index(SYMBOL_COL)
 
     # Halihazırda elde bulunan semboller
     current_syms = {p["symbol"] for p in positions}

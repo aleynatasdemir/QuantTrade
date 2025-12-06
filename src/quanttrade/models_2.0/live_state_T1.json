@@ -1,33 +1,13 @@
 {
-  "cash": 33.1211100000023,
+  "cash": 3346.029939200002,
   "positions": [
     {
       "symbol": "INDES",
       "entry_price": 7.5,
       "shares": 400,
       "entry_date": "2025-11-25",
-      "days_held": 2,
+      "days_held": 9,
       "current_price": 7.24,
-      "exit_planned": false,
-      "exit_reason_planned": null
-    },
-    {
-      "symbol": "KMPUR",
-      "entry_price": 15.06,
-      "shares": 200,
-      "entry_date": "2025-11-25",
-      "days_held": 2,
-      "current_price": 15.0,
-      "exit_planned": false,
-      "exit_reason_planned": null
-    },
-    {
-      "symbol": "TRALT",
-      "entry_price": 37.708,
-      "shares": 79,
-      "entry_date": "2025-11-25",
-      "days_held": 2,
-      "current_price": 37.84,
       "exit_planned": false,
       "exit_reason_planned": null
     },
@@ -36,8 +16,8 @@
       "entry_price": 23.0,
       "shares": 131,
       "entry_date": "2025-11-25",
-      "days_held": 2,
-      "current_price": 22.28,
+      "days_held": 9,
+      "current_price": 23.36,
       "exit_planned": false,
       "exit_reason_planned": null
     },
@@ -46,12 +26,28 @@
       "entry_price": 3.48,
       "shares": 862,
       "entry_date": "2025-11-25",
-      "days_held": 2,
-      "current_price": 3.41,
+      "days_held": 9,
+      "current_price": 3.4,
       "exit_planned": false,
       "exit_reason_planned": null
+    },
+    {
+      "symbol": "TTKOM",
+      "entry_price": 56.574,
+      "shares": 50,
+      "entry_date": "2025-12-01",
+      "days_held": 5,
+      "exit_planned": false,
+      "exit_reason_planned": null,
+      "current_price": 55.7
     }
   ],
-  "pending_buys": [],
-  "last_date": "2025-11-26"
+  "pending_buys": [
+    {
+      "symbol": "TCELL",
+      "planned_capital": 3346.029939200002,
+      "decision_date": "2025-12-05"
+    }
+  ],
+  "last_date": "2025-12-05"
 }

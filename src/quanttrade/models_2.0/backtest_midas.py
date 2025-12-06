@@ -12,10 +12,15 @@ import matplotlib.pyplot as plt
 
 from train_model import SectorStandardScaler  # sadece scaler kullanıyoruz
 
+# KAP kategorileri (train ile aynı sırada)
+KAP_CATEGORIES = ["FINANSAL_RAPOR", "GENEL_BILGI", "ILISKILI_TARAF", "SERMAYE_TEMETTU", "UNKNOWN", "YATIRIM_SOZLESME"]
+
 # ===== CONFIG =====
-DATA_PATH   = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_20d"
-BACKTEST_DIR = "backtest_results_realistic"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+DATA_PATH = os.path.join(PROJECT_ROOT, "data", "master", "master_df.csv")
+RESULTS_DIR = os.path.join(SCRIPT_DIR, "model_results_alpha_20d")
+BACKTEST_DIR = os.path.join(SCRIPT_DIR, "backtest_results_realistic")
 
 HORIZON      = 20        # Maksimum tutma süresi (gün)
 STOP_LOSS    = -0.05     # -%5
@@ -74,6 +79,21 @@ def main():
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
 
     # === Feature Prep ===
+    # KAP one-hot encoding (train ile aynı)
+    if "kap_category" in df.columns:
+        for cat in KAP_CATEGORIES:
+            col_name = f"kap_cat_{cat}"
+            df[col_name] = (df["kap_category"] == cat).astype(int)
+    
+    # Eksik KAP kolonlarını 0 ile doldur (model bunları bekliyor)
+    kap_numeric_cols = ["kap_sentiment", "kap_volatility", "kap_is_related_party", "kap_currency_impact"]
+    kap_cat_cols = [f"kap_cat_{cat}" for cat in KAP_CATEGORIES]
+    all_kap_cols = kap_numeric_cols + kap_cat_cols
+    
+    for col in all_kap_cols:
+        if col not in df.columns:
+            df[col] = 0
+    
     X = df[features].replace([np.inf, -np.inf], np.nan).fillna(df[features].median())
     Xs = scaler.transform(X, df[SECTOR_COL])  # sadece sektör scaler
     df["score"] = model.predict_proba(Xs)[:, 1]
@@ -122,7 +142,10 @@ def main():
                     # Hisse bugün işlem görmüyorsa, exit'i ertele
                     continue
 
-                raw_open = today_data.loc[sym][OPEN_COL]
+                exit_row = today_data.loc[sym]
+                if isinstance(exit_row, pd.DataFrame):
+                    exit_row = exit_row.iloc[0]
+                raw_open = exit_row[OPEN_COL]
                 # Satışta slipaj: açılıştan biraz daha kötü fiyat
                 exit_price = raw_open * (1 - SLIPPAGE_SELL)
 
@@ -147,7 +170,7 @@ def main():
                 portfolio.pop(i)
 
         # ==========================
-        # 2) STOP-LOSS KONTROLÜ (GÜN İÇİ, GERÇEK SL SİMÜLASYONU)
+        # 2) STOP-LOSS & TAKE-PROFIT KONTROLÜ (GÜN İÇİ)
         # ==========================
         for i in range(len(portfolio) - 1, -1, -1):
             pos = portfolio[i]
@@ -158,24 +181,36 @@ def main():
                 continue
 
             row = today_data.loc[sym]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
             low = row[LOW_COL]
+            high = row[HIGH_COL]
             open_price = row[OPEN_COL]
             close = row[PRICE_COL]
             entry = pos["entry_price"]
 
             stop_level = entry * (1 + STOP_LOSS)
+            tp_level = entry * (1 + TAKE_PROFIT)
 
             exit_reason = None
             exit_price = None
 
+            # Önce stop-loss kontrol (daha kötü senaryo öncelikli)
             if low <= stop_level:
                 exit_reason = "STOP_LOSS"
-                # Gap down senaryosu – burada slipajı ayrıca uygulamıyoruz,
-                # zaten stop_level / open senaryosu yeterince konservatif.
                 if open_price <= stop_level:
                     exit_price = open_price
                 else:
                     exit_price = stop_level
+            # Take-profit kontrol (high %10'a ulaştıysa)
+            elif high >= tp_level:
+                exit_reason = "TAKE_PROFIT"
+                if open_price >= tp_level:
+                    # Gap up senaryosu - açılıştan sat
+                    exit_price = open_price
+                else:
+                    # Gün içinde TP seviyesine ulaştı
+                    exit_price = tp_level
 
             if exit_reason is not None:
                 revenue = pos["shares"] * exit_price
@@ -220,7 +255,10 @@ def main():
                     continue
 
                 if sym in today_data.index:
-                    close = today_data.loc[sym][PRICE_COL]
+                    tp_row = today_data.loc[sym]
+                    if isinstance(tp_row, pd.DataFrame):
+                        tp_row = tp_row.iloc[0]
+                    close = tp_row[PRICE_COL]
                     entry = pos["entry_price"]
                     ret_close = (close / entry) - 1
 
@@ -251,7 +289,10 @@ def main():
                 if next_day_data is None or sym not in next_day_data.index:
                     continue
 
-                raw_open = next_day_data.loc[sym][OPEN_COL]
+                next_row = next_day_data.loc[sym]
+                if isinstance(next_row, pd.DataFrame):
+                    next_row = next_row.iloc[0]
+                raw_open = next_row[OPEN_COL]
                 # Alışta slipaj: açılıştan biraz daha kötü
                 entry_price = raw_open * (1 + SLIPPAGE_BUY)
 
@@ -285,7 +326,10 @@ def main():
         for pos in portfolio:
             sym = pos["symbol"]
             if sym in today_data.index:
-                curr_price = today_data.loc[sym][PRICE_COL]
+                eq_row = today_data.loc[sym]
+                if isinstance(eq_row, pd.DataFrame):
+                    eq_row = eq_row.iloc[0]
+                curr_price = eq_row[PRICE_COL]
             else:
                 curr_price = pos["entry_price"]
             portfolio_value += pos["shares"] * curr_price

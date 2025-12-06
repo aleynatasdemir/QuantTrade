@@ -10,12 +10,14 @@ from catboost import CatBoostClassifier
 import glob, os
 import matplotlib.pyplot as plt
 
-from train_model import SectorStandardScaler  # sadece scaler kullanıyoruz
+from train_model_v2 import SectorStandardScaler  # v2 kullanıyoruz
 
 # ===== CONFIG =====
-DATA_PATH   = "master_df.csv"
-RESULTS_DIR = "model_results_alpha_20d"
-BACKTEST_DIR = "backtest_results_realistic"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+DATA_PATH = os.path.join(PROJECT_ROOT, "data", "master", "master_df.csv")
+RESULTS_DIR = os.path.join(SCRIPT_DIR, "model_results_alpha_20d")
+BACKTEST_DIR = os.path.join(SCRIPT_DIR, "backtest_results_realistic")
 
 HORIZON      = 20        # Maksimum tutma süresi (gün)
 STOP_LOSS    = -0.05     # -%5
@@ -120,7 +122,29 @@ def main():
     df = calculate_stagnation_indicators(df)
 
     # === Feature Prep ===
-    X = df[features].replace([np.inf, -np.inf], np.nan).fillna(df[features].median())
+    # Numeric features
+    numeric_features = [f for f in features if not f.startswith("kap_cat_")]
+    X = df[numeric_features].replace([np.inf, -np.inf], np.nan).fillna(df[numeric_features].median())
+    
+    # kap_category one-hot encoding (train ile aynı)
+    if "kap_category" in df.columns:
+        kap_dummies = pd.get_dummies(df["kap_category"].fillna("UNKNOWN"), prefix="kap_cat")
+        # Train'deki kolonları koru
+        kap_cat_features = [f for f in features if f.startswith("kap_cat_")]
+        for col in kap_cat_features:
+            if col not in kap_dummies.columns:
+                kap_dummies[col] = 0
+        kap_dummies = kap_dummies[[c for c in kap_cat_features if c in kap_dummies.columns]]
+        X = pd.concat([X, kap_dummies], axis=1)
+    
+    # Eksik kolonları 0 ile doldur
+    for col in features:
+        if col not in X.columns:
+            X[col] = 0
+    
+    # Kolon sırasını train ile aynı yap
+    X = X[features]
+    
     Xs = scaler.transform(X, df[SECTOR_COL])  # sadece sektör scaler
     df["score"] = model.predict_proba(Xs)[:, 1]
 
@@ -168,7 +192,12 @@ def main():
                     # Hisse bugün işlem görmüyorsa, exit'i ertele
                     continue
 
-                raw_open = today_data.loc[sym][OPEN_COL]
+                # Duplicate kontrolü
+                sym_row = today_data.loc[sym]
+                if isinstance(sym_row, pd.DataFrame):
+                    sym_row = sym_row.iloc[0]
+                
+                raw_open = sym_row[OPEN_COL]
                 # Satışta slipaj: açılıştan biraz daha kötü fiyat
                 exit_price = raw_open * (1 - SLIPPAGE_SELL)
 
@@ -203,7 +232,11 @@ def main():
                 pos["days_held"] += 1
                 continue
 
+            # Duplicate kontrolü
             row = today_data.loc[sym]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+            
             low = row[LOW_COL]
             open_price = row[OPEN_COL]
             close = row[PRICE_COL]
@@ -266,7 +299,11 @@ def main():
             if next_dt is None or sym not in today_data.index:
                 continue
 
+            # Duplicate kontrolü
             row = today_data.loc[sym]
+            if isinstance(row, pd.DataFrame):
+                row = row.iloc[0]
+            
             entry = pos["entry_price"]
             days = pos["days_held"]
             close = row[PRICE_COL]
@@ -336,7 +373,12 @@ def main():
                 if next_day_data is None or sym not in next_day_data.index:
                     continue
 
-                raw_open = next_day_data.loc[sym][OPEN_COL]
+                # Duplicate kontrolü - ilk satırı al
+                sym_data = next_day_data.loc[sym]
+                if isinstance(sym_data, pd.DataFrame):
+                    sym_data = sym_data.iloc[0]
+                
+                raw_open = sym_data[OPEN_COL]
                 # Alışta slipaj: açılıştan biraz daha kötü
                 entry_price = raw_open * (1 + SLIPPAGE_BUY)
 
@@ -370,7 +412,11 @@ def main():
         for pos in portfolio:
             sym = pos["symbol"]
             if sym in today_data.index:
-                curr_price = today_data.loc[sym][PRICE_COL]
+                # Duplicate kontrolü
+                sym_price_row = today_data.loc[sym]
+                if isinstance(sym_price_row, pd.DataFrame):
+                    sym_price_row = sym_price_row.iloc[0]
+                curr_price = sym_price_row[PRICE_COL]
             else:
                 curr_price = pos["entry_price"]
             portfolio_value += pos["shares"] * curr_price

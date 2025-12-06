@@ -4,3 +4,4 @@ entry_date,exit_date,symbol,entry_price,exit_price,shares,return,reason,days_hel
 2025-11-25,,TRALT,37.708,,79,,ENTRY,0
 2025-11-25,,GWIND,22.865,,131,,ENTRY,0
 2025-11-25,,HUNER,3.448,,870,,ENTRY,0
+2025-11-25,2025-12-05,KMPUR,15.06,16.648,200,0.10544488711819389,TAKE_PROFIT,9
