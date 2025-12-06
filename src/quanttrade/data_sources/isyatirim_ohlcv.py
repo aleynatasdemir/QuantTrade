@@ -281,7 +281,6 @@ def fetch_ohlcv_from_isyatirim(
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     
-<<<<<<< HEAD
     logger.info(f"{'='*60}")
     logger.info(f"İş Yatırım OHLCV Veri Çekme (INCREMENTAL MOD)")
     logger.info(f"Semboller: {len(symbols)} adet")
@@ -292,43 +291,15 @@ def fetch_ohlcv_from_isyatirim(
     skip_count = 0
     error_count = 0
     errors = []
-=======
-    try:
-        start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-        end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-    except ValueError as e:
-        raise ValueError(f"Geçersiz tarih formatı: {e}")
-    
-    start_str = start_dt.strftime("%d-%m-%Y")
-    end_str = end_dt.strftime("%d-%m-%Y")
-    
-    
-    logger.info(f"{'='*60}")
-    logger.info(f"İş Yatırım OHLCV Veri Çekme")
-    logger.info(f"Toplam: {len(symbols)} sembol")
-    logger.info(f"{'='*60}")
-    
-    successful = 0
-    failed = 0
-    BATCH_SIZE = 20  # Her 20 hissede bir log
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
     
     MAX_RETRIES = 3
     BASE_WAIT = 60
     
-<<<<<<< HEAD
     for i, symbol in enumerate(symbols, 1):
         # Incremental aralık hesapla
         new_start, new_end, is_incremental = get_incremental_range_for_symbol(
             symbol, output_path, start_date, end_date
         )
-=======
-    for idx, symbol in enumerate(symbols, 1):
-        # Batch progress log (her 20'de bir veya son hisse)
-        if idx % BATCH_SIZE == 1 or idx == len(symbols):
-            end_idx = min(idx + BATCH_SIZE - 1, len(symbols))
-            logger.info(f"📊 OHLCV {idx}-{end_idx}/{len(symbols)} işleniyor...")
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
         
         # Veri güncel mi?
         if new_start is None and is_incremental:
@@ -336,7 +307,6 @@ def fetch_ohlcv_from_isyatirim(
             skip_count += 1
             continue
         
-<<<<<<< HEAD
         logger.info(f"[{i}/{len(symbols)}] {symbol} çekiliyor ({new_start} -> {new_end})...")
         
         # Veri çek
@@ -365,49 +335,3 @@ def fetch_ohlcv_from_isyatirim(
     logger.info(f"Tamamlandı. Başarılı: {success_count} | Atlanan (güncel): {skip_count} | Hata: {error_count}")
     if errors:
         logger.info(f"Hatalı Hisseler: {', '.join(errors)}")
-=======
-        for attempt in range(MAX_RETRIES):
-            try:
-                df = fetch_stock_data(
-                    symbols=symbol,
-                    start_date=start_str,
-                    end_date=end_str,
-                    save_to_excel=False,
-                )
-                
-                if df is None or df.empty:
-                    raise ValueError("Boş veri")
-                
-                df_standard = standardize_ohlcv_dataframe(df, symbol)
-                
-                if df_standard.empty:
-                    raise ValueError("Veri standardize edilemedi")
-                
-                # Save
-                output_file = output_path / f"{symbol}_ohlcv_isyatirim.csv"
-                df_standard.to_csv(output_file, index=True, encoding='utf-8')
-                
-                success = True
-                successful += 1
-                break
-            
-            except Exception as e:
-                last_error = str(e)[:50]
-                wait_time = BASE_WAIT + (attempt * 10) + random.uniform(1, 5)
-                
-                if attempt < MAX_RETRIES - 1:
-                    time.sleep(wait_time)
-                else:
-                    # Sadece hatalı olanları logla
-                    logger.error(f"❌ {symbol} - {last_error}")
-        
-        if not success:
-            failed += 1
-        
-        # Rate limit between stocks
-        if idx < len(symbols):
-            time.sleep(rate_limit_delay + random.uniform(1.0, 3.0))
-    
-    logger.info(f"{'='*60}")
-    logger.info(f"✅ Tamamlandı: {successful} başarılı, {failed} hatalı")
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09

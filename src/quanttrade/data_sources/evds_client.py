@@ -330,7 +330,6 @@ class EVDSClient:
             try:
                 freq = series_frequencies.get(evds_code, 1)
                 
-<<<<<<< HEAD
 =======
                 # Veri çek
 >>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
@@ -354,27 +353,15 @@ class EVDSClient:
 <<<<<<< HEAD
                 df_new = df_new.join(df_series, how='left')
                 logger.info(f"✓ {friendly_name}: {len(df_series)} satır eklendi")
-=======
-                # Ana DataFrame'e ekle
-                df_combined = df_combined.join(df_series, how='left')
-                successful_series += 1
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
                 
             except Exception as e:
                 logger.error(f"❌ {friendly_name} - {str(e)[:50]}")
                 continue
         
-<<<<<<< HEAD
         if df_new.empty or df_new.shape[1] == 0:
             logger.warning("Yeni veri çekilemedi")
             if not old_df.empty:
                 return str(output_path)
-=======
-        logger.info(f"✅ EVDS: {successful_series}/{total_series} seri başarılı")
-        
-        if df_combined.empty or df_combined.shape[1] == 0:
-            logger.warning("Hiç veri çekilemedi")
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
             return ""
         
         # Eski ve yeni veriyi birleştir
