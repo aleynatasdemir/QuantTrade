@@ -14,11 +14,15 @@ class PendingBuy(BaseModel):
 
 
 class Position(BaseModel):
+    """Portfolio position model"""
     symbol: str
     entry_price: float
     shares: int
     entry_date: str
     days_held: int
+    # Frontend compatibility fields
+    avg_price: Optional[float] = None
+    current_price: Optional[float] = None
 
 
 class PortfolioState(BaseModel):

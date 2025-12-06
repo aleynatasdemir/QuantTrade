@@ -22,6 +22,13 @@ async def run_pipeline(request: PipelineRunRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/stop")
+async def stop_pipeline():
+    """Stop running pipeline"""
+    result = await pipeline_service.stop_pipeline()
+    return result
+
+
 @router.get("/status", response_model=PipelineStatus)
 async def get_pipeline_status():
     """Get current pipeline execution status"""
@@ -32,10 +39,10 @@ async def get_pipeline_status():
 
 
 @router.get("/logs")
-async def get_pipeline_logs(max_lines: int = 100):
-    """Get recent pipeline logs"""
+async def get_logs(since_line: int = 0):
+    """Get pipeline logs from specific line"""
     try:
-        logs = pipeline_service.get_logs(max_lines)
-        return {"logs": logs}
+        result = pipeline_service.get_logs(since_line=since_line)
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

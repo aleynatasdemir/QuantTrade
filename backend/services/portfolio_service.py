@@ -32,6 +32,15 @@ class PortfolioService:
             with open(self.state_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
+            # Ensure avg_price and current_price exist for frontend compatibility
+            if 'positions' in data:
+                for pos in data['positions']:
+                    # Keep existing current_price if available, otherwise use entry_price
+                    if 'current_price' not in pos and 'entry_price' in pos:
+                        pos['current_price'] = pos['entry_price']
+                    if 'avg_price' not in pos and 'entry_price' in pos:
+                        pos['avg_price'] = pos['entry_price']
+            
             return PortfolioState(**data)
         except Exception as e:
             raise RuntimeError(f"Failed to load portfolio state: {str(e)}")

@@ -20,6 +20,7 @@ Stop-loss:
 import os
 import json
 import glob
+import sys
 from datetime import datetime
 
 import numpy as np
@@ -34,7 +35,11 @@ from train_model import SectorStandardScaler  # sadece scaler gerekiyor
 # CONFIG
 # ========================
 
-DATA_PATH    = "master_df.csv"
+# Project root'a göre paths
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+
+DATA_PATH    = os.path.join(PROJECT_ROOT, "data", "master", "master_df.csv")
 RESULTS_DIR  = "model_results_alpha_20d"
 
 STATE_PATH   = "live_state_T1.json"
@@ -364,6 +369,16 @@ def main():
     # 3) STATE + LOG DOSYALARINI KAYDET
     # ============================
 
+    # Add current_price to each position for frontend
+    ref_data_for_prices = grouped.get_group(ref_date).set_index(SYMBOL_COL) if ref_date in df[DATE_COL].values else None
+    if ref_data_for_prices is not None:
+        for pos in positions:
+            sym = pos["symbol"]
+            try:
+                pos["current_price"] = float(ref_data_for_prices.loc[sym, PRICE_COL])
+            except KeyError:
+                pos["current_price"] = float(pos["entry_price"])  # Fallback to entry price
+    
     state["cash"] = float(cash)
     state["positions"] = positions
     state["pending_buys"] = pending_buys

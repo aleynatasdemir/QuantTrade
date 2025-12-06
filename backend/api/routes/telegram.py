@@ -99,3 +99,13 @@ async def broadcast_message(message: BroadcastMessage):
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/messages")
+async def get_message_history(limit: int = 50):
+    """Get broadcast message history"""
+    try:
+        messages = telegram_service.get_message_history(limit)
+        return messages
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

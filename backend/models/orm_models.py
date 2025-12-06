@@ -4,7 +4,7 @@ SQLAlchemy ORM Models for QuantTrade Database
 from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
-from backend.models.database import Base
+from models.database import Base
 
 
 class User(Base):

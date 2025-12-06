@@ -22,7 +22,6 @@ import json
 import glob
 import sys
 import importlib.util
-import pickle
 from datetime import datetime
 
 import numpy as np
@@ -36,15 +35,11 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", ".."))
 sys.path.insert(0, PROJECT_ROOT)
 
-# Load SectorStandardScaler from train_model.py (models_2.0 dir has dots, so use importlib)
-model_module_path = os.path.join(PROJECT_ROOT, "src", "quanttrade", "models_2.0", "train_model.py")
-spec = importlib.util.spec_from_file_location("train_model", model_module_path)
-train_model = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(train_model)
-SectorStandardScaler = train_model.SectorStandardScaler
+# Import SectorStandardScaler from correct location (v2 model)
+sys.path.insert(0, os.path.join(PROJECT_ROOT, "src", "quanttrade", "models_2.0"))
+from train_model_v2 import SectorStandardScaler
 
-# Register train_model in sys.modules so pickle can find it
-sys.modules['train_model'] = train_model
+
 
 # ========================
 # CONFIG
@@ -98,38 +93,13 @@ def load_model_and_meta():
     model.load_model(model_path)
 
     # Meta/neutralizer dosyasını yükle
-    # Pickle dosyası __main__.SectorStandardScaler veya doğrudan SectorStandardScaler arıyor
-    # CustomUnpickler ile bunları train_model modülüne yönlendiriyoruz
-    if meta_path is not None:
-        try:
-            # Custom unpickler: çeşitli module referanslarını train_model'e yönlendir
-            class CustomUnpickler(pickle.Unpickler):
-                def find_class(self, module, name):
-                    # Eğer modül adı sınıf adıyla aynıysa veya __main__ ise -> train_model'e yönlendir
-                    if name in ["SectorStandardScaler", "FeatureNeutralizer"]:
-                        # Modül adı yanlış veya __main__ ise train_model'i kullan
-                        if module == name or module in ["__main__", ""]:
-                            return getattr(train_model, name)
-                    return super().find_class(module, name)
-            
-            with open(meta_path, "rb") as f:
-                meta = CustomUnpickler(f).load()
-            print(f">> Meta dosyası başarıyla yüklendi: {meta_path}")
-        except Exception as e:
-            # Hala hata varsa, varsayılanları kullan
-            print(f">> Meta dosyası yüklenirken hata: {e}")
-            print(">> Varsayılan SectorStandardScaler kullanılıyor...")
-            meta = {
-                "sector_scaler": SectorStandardScaler(),
-                "features": []  # Features sonra set edilecek
-            }
-    else:
-        # Meta dosyası yok, varsayılanları kullan
-        print(">> Meta dosyası bulunamadı, varsayılanları kullanılıyor...")
-        meta = {
-            "sector_scaler": SectorStandardScaler(),
-            "features": []
-        }
+    # Not: FeatureNeutralizer train_model_v2'de yok, bu yüzden fallback kullan
+    # SectorStandardScaler'ı her zaman yeni instance ile kullan
+    print(">> Meta dosyası fallback modu (SectorStandardScaler): direktif olarak v2 sürümü")
+    meta = {
+        "sector_scaler": SectorStandardScaler(),
+        "features": []  # Features sonra set edilecek
+    }
     
     # meta: { "sector_scaler": sec_scaler_final, "features": feature_names }
     return model, meta

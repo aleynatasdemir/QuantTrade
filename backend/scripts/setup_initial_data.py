@@ -12,8 +12,8 @@ from datetime import datetime
 backend_path = Path(__file__).parent.parent
 sys.path.insert(0, str(backend_path.parent))
 
-from backend.models.database import get_db_context
-from backend.models.orm_models import User, Portfolio
+from models.database import get_db_context
+from models.orm_models import User, Portfolio
 
 
 def hash_password(password: str) -> str:

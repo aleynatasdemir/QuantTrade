@@ -4,7 +4,11 @@ FastAPI Main Application
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
+<<<<<<< HEAD
 from api.routes import portfolio, pipeline, telegram
+=======
+from api.routes import portfolio, pipeline, telegram, gpt
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
 
 # Create FastAPI app
 app = FastAPI(
@@ -26,6 +30,7 @@ app.add_middleware(
 app.include_router(portfolio.router)
 app.include_router(pipeline.router)
 app.include_router(telegram.router)
+app.include_router(gpt.router)
 
 
 @app.get("/")
@@ -55,7 +60,7 @@ if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
-        host=settings.backend_host,
-        port=settings.backend_port,
-        reload=True
+        host="0.0.0.0",
+        port=8000,
+        reload=False  # Disable auto-reload for production stability
     )

@@ -10,9 +10,9 @@ import pandas as pd
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from backend.models.database import get_db_context
-from backend.models.orm_models import Signal, PriceData, MacroData
-from backend.models.schemas import SignalCreate
+from models.database import get_db_context
+from models.orm_models import Signal, PriceData, MacroData
+from models.schemas import SignalCreate
 
 logger = logging.getLogger(__name__)
 

@@ -23,33 +23,33 @@ try:
 except ImportError:
     import tomli as tomllib
 
+# Add src to path for imports
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from quanttrade.config import get_stocks_settings
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 
 # ------------------------------------------------------------------
-# 1) Hisse listesini config/settings.toml'den al
+# 1) Hisse listesini config helper'dan al
 # ------------------------------------------------------------------
-CONFIG_PATH = Path(__file__).resolve().parent.parent.parent.parent / "config" / "settings.toml"
-
 try:
-    with open(CONFIG_PATH, "rb") as f:
-        config = tomllib.load(f)
-    symbols = config.get("stocks", {}).get("symbols", [])
+    config = get_stocks_settings()
+    symbols = config.get("symbols", [])
+    start_date_str = config.get("start_date", "2020-01-01")
+    end_date_str = config.get("end_date", "2025-11-25")
     
     if not symbols:
         logging.error("Config'te hisse listesi (stocks.symbols) bulunamadı!")
         sys.exit(1)
         
-except FileNotFoundError:
-    logging.error(f"Config dosyası bulunamadı: {CONFIG_PATH}")
-    sys.exit(1)
 except Exception as e:
     logging.error(f"Config dosyası okunurken hata: {e}")
     sys.exit(1)
 
-# Benzersiz sembolleri al (duplikatları çıkar)
+# Benzensiz sembolleri al (duplikatları çıkar)
 symbols = list(set(symbols))
 symbols.sort()
 
@@ -58,6 +58,7 @@ logging.info(f"{len(symbols)} adet sembol bulundu (config'ten yüklendi).")
 # Proje kök dizinine göre ayarla
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "raw"
 
+<<<<<<< HEAD
 
 def get_last_business_day(date: datetime = None) -> datetime:
     """Haftasonu ise Cuma'ya geri gider."""
@@ -75,6 +76,8 @@ start_date_str = config.get("stocks", {}).get("start_date", "2020-01-01")
 end_date = get_last_business_day()
 end_date_str = end_date.strftime("%Y-%m-%d")
 
+=======
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
 # Tarih aralığını parse et (YYYY-MM-DD formatında)
 start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
 

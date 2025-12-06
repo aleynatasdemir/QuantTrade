@@ -10,8 +10,8 @@ from pathlib import Path
 backend_path = Path(__file__).parent
 sys.path.insert(0, str(backend_path.parent))
 
-from backend.models.database import engine, init_db
-from backend.models.orm_models import (
+from models.database import engine, init_db
+from models.orm_models import (
     User, Portfolio, Position, Trade, Signal, PriceData, MacroData, ExecutionLog
 )
 

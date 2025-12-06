@@ -13,11 +13,39 @@ type StepStatus = 'idle' | 'running' | 'completed' | 'error';
 type PipelineStep = 'ingestion' | 'processing' | 'features' | 'master';
 
 export const PipelineView: React.FC = () => {
-  const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'failed'>('idle');
+  const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'failed' | 'stopped'>('idle');
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [activeStep, setActiveStep] = useState<PipelineStep | null>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Use ref for lastLogLine to avoid closure issues in interval
+  const lastLogLineRef = useRef(0);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('pipelineState');
+    if (savedState) {
+      try {
+        const state = JSON.parse(savedState);
+        if (state.status === 'running') {
+          setStatus('running');
+          setLogs(state.logs || []);
+          setActiveStep(state.activeStep);
+          lastLogLineRef.current = state.lastLogLine || 0;
+          // Auto-resume polling
+          pollLogsAndStatus();
+          pollIntervalRef.current = setInterval(pollLogsAndStatus, 2000);
+        } else if (state.status === 'completed' || state.status === 'failed') {
+          setStatus(state.status);
+          setLogs(state.logs || []);
+          setActiveStep(state.activeStep);
+        }
+      } catch (e) {
+        console.error('Failed to restore state:', e);
+      }
+    }
+  }, []);
 
   // Auto-scroll logs
   useEffect(() => {
@@ -25,6 +53,16 @@ export const PipelineView: React.FC = () => {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [logs]);
+
+  // Save state to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem('pipelineState', JSON.stringify({
+      status,
+      logs,
+      activeStep,
+      lastLogLine: lastLogLineRef.current
+    }));
+  }, [status, logs, activeStep]);
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -69,45 +107,55 @@ export const PipelineView: React.FC = () => {
 
   const pollLogsAndStatus = async () => {
     try {
-      const [statusData, logsData] = await Promise.all([
-        pipelineAPI.getStatus(),
-        pipelineAPI.getLogs()
-      ]);
+      // Fetch new logs since last line (using ref for current value)
+      const logsResult = await pipelineAPI.getLogs(lastLogLineRef.current);
 
-      // Update status
-      if (statusData.status === 'completed') {
-        setStatus('completed');
-        setActiveStep(null);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-      } else if (statusData.status === 'failed') {
-        setStatus('failed');
-        setActiveStep(null);
-        if (pollIntervalRef.current) {
-          clearInterval(pollIntervalRef.current);
-          pollIntervalRef.current = null;
-        }
-      } else if (statusData.status === 'running') {
-        setStatus('running');
-        // Determine active step from progress message
-        const progress = statusData.progress?.toLowerCase() || '';
-        if (progress.includes('ingestion') || progress.includes('downloader') || progress.includes('macro') || progress.includes('ohlcv')) {
-          setActiveStep('ingestion');
-        } else if (progress.includes('processing') || progress.includes('cleaner') || progress.includes('normalizer')) {
-          setActiveStep('processing');
-        } else if (progress.includes('feature') || progress.includes('engineer')) {
-          setActiveStep('features');
-        } else if (progress.includes('master') || progress.includes('builder')) {
-          setActiveStep('master');
-        }
+      // Only add NEW logs (not duplicates)
+      if (logsResult.lines && logsResult.lines.length > 0) {
+        const newLogEntries = logsResult.lines.map((line: string, idx: number) => ({
+          id: Date.now() + idx,
+          timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+          level: 'INFO' as const,
+          message: line
+        }));
+
+        setLogs(prev => [...prev, ...newLogEntries]);
+        lastLogLineRef.current += logsResult.lines.length; // Update ref directly
       }
 
-      // Update logs
-      if (logsData.logs && logsData.logs.trim()) {
-        const newLogs = parseLogsFromBackend(logsData.logs);
-        setLogs(newLogs);
+      // Fetch status
+      const statusResult = await pipelineAPI.getStatus();
+
+      if (statusResult.status === 'completed') {
+        setStatus('completed');
+        setActiveStep(null);
+        addLog("Pipeline completed successfully", "INFO");
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      } else if (statusResult.status === 'failed') {
+        setStatus('failed');
+        setActiveStep(null);
+        addLog("Pipeline failed", "ERROR");
+        if (pollIntervalRef.current) {
+          clearInterval(pollIntervalRef.current);
+          pollIntervalRef.current = null;
+        }
+      } else if (statusResult.status === 'running') {
+        setStatus('running');
+
+        // Determine active step from progress
+        const progress = statusResult.progress?.toLowerCase() || '';
+        if (progress.includes('ingestion') || progress.includes('downloader')) {
+          setActiveStep('ingestion');
+        } else if (progress.includes('processing') || progress.includes('cleaner')) {
+          setActiveStep('processing');
+        } else if (progress.includes('feature')) {
+          setActiveStep('features');
+        } else if (progress.includes('master')) {
+          setActiveStep('master');
+        }
       }
     } catch (error) {
       console.error('Failed to poll logs/status:', error);
@@ -117,14 +165,14 @@ export const PipelineView: React.FC = () => {
   const runPipeline = async () => {
     if (status === 'running') return;
 
-    setStatus('running');
+    // Clear old logs before starting new pipeline
     setLogs([]);
-    setActiveStep('ingestion');
+    lastLogLineRef.current = 0; // Reset ref
+
+    setStatus('running');
+    setActiveStep('ingestion'); // Set initial active step
 
     try {
-      addLog("Starting pipeline: run_daily_pipeline.py", "INFO");
-
-      // Call backend API to start pipeline
       const result = await pipelineAPI.run('pipeline');
 
       if (result.status === 'started') {
@@ -159,27 +207,50 @@ export const PipelineView: React.FC = () => {
           <p className="text-zinc-500 font-mono text-xs md:text-sm">Automated Data Ingestion & Feature Engineering</p>
         </div>
 
-        <button
-          onClick={runPipeline}
-          disabled={status === 'running'}
-          className={`
+        <div className="flex gap-3">
+          {status === 'running' && (
+            <button
+              onClick={async () => {
+                try {
+                  await pipelineAPI.stop();
+                  addLog("Pipeline stopped by user", "WARNING");
+                  setStatus('stopped');
+                  if (pollIntervalRef.current) {
+                    clearInterval(pollIntervalRef.current);
+                    pollIntervalRef.current = null;
+                  }
+                } catch (error: any) {
+                  addLog(`Failed to stop: ${error.message}`, "ERROR");
+                }
+              }}
+              className="px-6 py-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl font-mono text-sm transition-all border border-red-500/20 hover:border-red-500/40"
+            >
+              ⏹ Stop Pipeline
+            </button>
+          )}
+
+          <button
+            onClick={runPipeline}
+            disabled={status === 'running'}
+            className={`
             w-full md:w-auto
             group flex items-center justify-center gap-3 px-8 py-3 rounded-lg font-bold tracking-wider transition-all duration-300
             ${status === 'running'
-              ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5'
-              : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:border-emerald-500 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]'}
+                ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed border border-white/5'
+                : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/50 hover:border-emerald-500 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]'}
           `}
-        >
-          {status === 'running' ? (
-            <>
-              <Loader2 className="animate-spin" /> EXECUTING...
-            </>
-          ) : (
-            <>
-              <Play className="fill-current" /> RUN PIPELINE
-            </>
-          )}
-        </button>
+          >
+            {status === 'running' ? (
+              <>
+                <Loader2 className="animate-spin" /> EXECUTING...
+              </>
+            ) : (
+              <>
+                <Play className="fill-current" /> RUN PIPELINE
+              </>
+            )}
+          </button>
+        </div> {/* Close buttons container */}
       </div>
 
       {/* Visual Flow */}
@@ -405,14 +476,14 @@ const DownloadItem = ({ name, size, type, onDownload }: any) => {
 // Add CSS keyframe for the loading bar
 const style = document.createElement('style');
 style.innerHTML = `
-  @keyframes loading-bar {
-    0% { width: 0%; left: 0; opacity: 1; }
-    50% { width: 100%; left: 0; opacity: 1; }
-    100% { width: 100%; left: 100%; opacity: 0; }
+      @keyframes loading-bar {
+        0 % { width: 0 %; left: 0; opacity: 1; }
+    50% {width: 100%; left: 0; opacity: 1; }
+      100% {width: 100%; left: 100%; opacity: 0; }
   }
-  .animate-loading-bar {
-    animation: loading-bar 1.5s infinite linear;
-    width: 30%; /* Start small and move across */
+      .animate-loading-bar {
+        animation: loading-bar 1.5s infinite linear;
+      width: 30%; /* Start small and move across */
   }
-`;
+      `;
 document.head.appendChild(style);

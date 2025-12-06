@@ -1,0 +1,192 @@
+[
+  {
+    "id": 1,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "selam",
+    "timestamp": "04:37",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 2,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "hi",
+    "timestamp": "04:37",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 3,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "📊 *LIVE PORTFOLIO STATE (T+1)*\nSon işlenen tarih: 2025-11-25\nNakit: 15,000.00 TL\nAktif pozisyon sayısı: 0\n\nAktif pozisyon yok.\n\n🔵 Yarın için yeni alım önerisi yok.",
+    "timestamp": "04:37",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 4,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "📊 *LIVE PORTFOLIO STATE (T+1)*\nSon işlenen tarih: 2025-11-25\nNakit: 15,000.00 TL\nAktif pozisyon sayısı: 0\n\nAktif pozisyon yok.\n\n🔵 Yarın için yeni alım önerisi yok.",
+    "timestamp": "04:37",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 5,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "📊 *LIVE PORTFOLIO STATE (T+1)*\nSon işlenen tarih: 2025-11-25\nNakit: 15,000.00 TL\nAktif pozisyon sayısı: 0\n\nAktif pozisyon yok.\n\n🟢 *Yarın İçin Yeni Alım Önerileri*\n- TEZOL: score=0.664, tahmini sermaye ~ 3,000 TL\n- MAVI: score=0.663, tahmini sermaye ~ 3,000 TL\n- CEMTS: score=0.652, tahmini sermaye ~ 3,000 TL\n- BIMAS: score=0.651, tahmini sermaye ~ 3,000 TL\n- BERA: score=0.649, tahmini sermaye ~ 3,000 TL",
+    "timestamp": "05:12",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 6,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "✅ Live Portfolio Manager - Başarılı\n\n>> Loading model & state...\n>> Loading data...\n\n===== LIVE PORTFOLIO STATE (T+1) =====\nSon işlenen tarih        : 2025-11-25\nNakit                    : 33.12 TL\nAktif pozisyon sayısı    : 5\n\nAktif pozisyonlar:\n  INDES: 400 adet, giriş 7.50, son 7.25, PnL -3.33% (-100 TL), gün sayısı 1\n  KMPUR: 200 adet, giriş 15.06, son 14.66, PnL -2.66% (-80 TL), gün sayısı 1\n  TRALT: 79 adet, giriş 37.71, son 37.88, PnL 0.46% (14 TL), gün sayısı 1\n  GWIND: 131 adet, giriş 23.00, son 22.78, PnL -0.96% (-29 TL), gün sayısı 1\n  HUNER: 862 adet, giriş 3.48, son 3.42, PnL -1.72% (-52 TL), gün sayısı 1\n\nYarın için yeni alım önerisi yok (slot yok veya uygun aday yok).\n",
+    "timestamp": "05:26",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 7,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "✅ Live Portfolio Manager - Başarılı\n\n>> Loading model & state...\n>> Loading data...\n\n===== LIVE PORTFOLIO STATE (T+1) =====\nSon işlenen tarih        : 2025-11-25\nNakit                    : 33.12 TL\nAktif pozisyon sayısı    : 5\n\nAktif pozisyonlar:\n  INDES: 400 adet, giriş 7.50, son 7.25, PnL -3.33% (-100 TL), gün sayısı 1\n  KMPUR: 200 adet, giriş 15.06, son 14.66, PnL -2.66% (-80 TL), gün sayısı 1\n  TRALT: 79 adet, giriş 37.71, son 37.88, PnL 0.46% (14 TL), gün sayısı 1\n  GWIND: 131 adet, giriş 23.00, son 22.78, PnL -0.96% (-29 TL), gün sayısı 1\n  HUNER: 862 adet, giriş 3.48, son 3.42, PnL -1.72% (-52 TL), gün sayısı 1\n\nYarın için yeni alım önerisi yok (slot yok veya uygun aday yok).\n",
+    "timestamp": "05:27",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 8,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "✅ Live Portfolio Manager - Başarılı\n\n>> Loading model & state...\n>> Loading data...\n\n===== LIVE PORTFOLIO STATE (T+1) =====\nSon işlenen tarih        : 2025-11-25\nNakit                    : 33.12 TL\nAktif pozisyon sayısı    : 5\n\nAktif pozisyonlar:\n  INDES: 400 adet, giriş 7.50, son 7.25, PnL -3.33% (-100 TL), gün sayısı 1\n  KMPUR: 200 adet, giriş 15.06, son 14.66, PnL -2.66% (-80 TL), gün sayısı 1\n  TRALT: 79 adet, giriş 37.71, son 37.88, PnL 0.46% (14 TL), gün sayısı 1\n  GWIND: 131 adet, giriş 23.00, son 22.78, PnL -0.96% (-29 TL), gün sayısı 1\n  HUNER: 862 adet, giriş 3.48, son 3.42, PnL -1.72% (-52 TL), gün sayısı 1\n\nYarın için yeni alım önerisi yok (slot yok veya uygun aday yok).\n",
+    "timestamp": "05:28",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 9,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "🚀 Test mesajı: QuantTrade live sistemi aktif!",
+    "timestamp": "05:28",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 10,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "📊 *LIVE PORTFOLIO STATE (T+1)*\nSon işlenen tarih: 2025-11-25\nNakit: 15,000.00 TL\nAktif pozisyon sayısı: 0\n\nAktif pozisyon yok.\n\n🔵 Yarın için yeni alım önerisi yok.",
+    "timestamp": "05:28",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 11,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "📊 *LIVE PORTFOLIO STATE (T+1)*\nSon işlenen tarih: 2025-11-25\nNakit: 15,000.00 TL\nAktif pozisyon sayısı: 0\n\nAktif pozisyon yok.\n\n🔵 Yarın için yeni alım önerisi yok.",
+    "timestamp": "05:29",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 12,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "📊 *LIVE PORTFOLIO STATE (T+1)*\nSon işlenen tarih: 2025-11-25\nNakit: 15,000.00 TL\nAktif pozisyon sayısı: 0\n\nAktif pozisyon yok.\n\n🔵 Yarın için yeni alım önerisi yok.",
+    "timestamp": "05:33",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 13,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "selam",
+    "timestamp": "13:06",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 14,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "Merhaba!",
+    "timestamp": "13:06",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 15,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "slmmm",
+    "timestamp": "13:06",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 16,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "selam",
+    "timestamp": "23:46",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 17,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "selam",
+    "timestamp": "23:46",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 18,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "naber",
+    "timestamp": "23:47",
+    "date": "2025-11-26",
+    "status": "SENT"
+  },
+  {
+    "id": 19,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": " o gülücüğü götüne sokarm",
+    "timestamp": "23:52",
+    "date": "2025-11-26",
+    "status": "SENT"
+  }
+]

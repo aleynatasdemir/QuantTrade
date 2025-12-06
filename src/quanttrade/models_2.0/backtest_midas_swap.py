@@ -1,57 +1,39 @@
 """
-REALISTIC MIDAS-STYLE BACKTEST (T+1, SWAP, SLIPPAGE)
-
-- Universe: master_df.csv (dataset_split == "test")
-- Model: CatBoost alpha_20d + SectorStandardScaler
-- Strategy:
-    * Max 5 positions
-    * Stop-loss: -5% (gap + intraday low)
-    * Horizon: 20 days (TIME_EXIT, T+1 open)
-    * SWAP: günde max 2 slot
-        - Portföyün en kötü skorlu hisseleri
-        - Modelin en iyi skorlu hisseleri
-        - Skor farkı >= 0.05 (5 puan)
-    * Execution: T+1 OPEN (Midas'ta ertesi gün piyasa emri gibi)
-    * Slippage:
-        - BUY: +1% (OPEN * 1.01)
-        - SELL: -0.5% (OPEN * 0.995)
-    * Commission: 0.2% (alım + satım dahil her işlemde)
+REALISTIC SLOT-BASED BACKTESTER (T+1, MODEL+TP EXIT, SLIPPAGE) + SCORE ROTATION
+Bu versiyon:
+- Zayıflayan hisseyi (Score < 0.50), güçlü aday varsa (Score > 0.80) acımasızca satar.
+- Slotları sürekli "En Formda" hisselerle dolu tutmaya çalışır.
 """
 
-import os
-import glob
-from typing import List, Dict
-
-import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
+import numpy as np
+from datetime import timedelta
 import joblib
 from catboost import CatBoostClassifier
+import glob, os
+import matplotlib.pyplot as plt
 
 from train_model import SectorStandardScaler
 
-# ============================
-# CONFIG
-# ============================
-
+# ===== CONFIG =====
 DATA_PATH   = "master_df.csv"
 RESULTS_DIR = "model_results_alpha_20d"
-BACKTEST_DIR = "backtest_results_midas_swap"
+BACKTEST_DIR = "backtest_results_realistic"
 
-HORIZON_DAYS   = 20
-STOP_LOSS_PCT  = -0.05       # -5%
-MAX_POSITIONS  = 5
-
-SWAP_LIMIT     = 2           # günde max 2 swap
-SWAP_GAP       = 0.05        # skor farkı eşiği (best_score - worst_score)
-
+HORIZON      = 20        # Maksimum tutma süresi
+STOP_LOSS    = -0.05     # -%5
+TAKE_PROFIT  = 0.10      # +%10 (Model onayıyla)
+MAX_POSITIONS = 5        # Slot Sayısı
 INITIAL_CAPITAL = 100_000
-COMMISSION      = 0.002      # binde 2
+COMMISSION   = 0.002     # Binde 2
 
-SLIPPAGE_BUY  = 0.01         # +%1
-SLIPPAGE_SELL = 0.005        # -%0.5
+# SLIPAJ (Gerçekçilik)
+SLIPPAGE_BUY  = 0.01   # %1
+SLIPPAGE_SELL = 0.005  # %0.5
 
-TOP_K = 5               # modelin baktığı en iyi K aday (portföyde olmayanlardan SWAP için)
+# ROTATION AYARLARI (YENİ) 🔄
+ROTATION_EXIT_THRESHOLD  = 0.50  # Elimdeki hissenin skoru buna düşerse tehlike
+ROTATION_ENTRY_THRESHOLD = 0.80  # Dışarıda bundan yüksek skorlu varsa değişim yap
 
 PRICE_COL  = "price_close"
 OPEN_COL   = "price_open"
@@ -61,456 +43,254 @@ DATE_COL   = "date"
 SYMBOL_COL = "symbol"
 SECTOR_COL = "sector"
 
+TOP_K = 5 
 
-# ============================
-# HELPERS
-# ============================
-
-def get_latest(pattern: str) -> str:
+def get_latest(pattern):
     files = glob.glob(pattern)
-    if not files:
-        return None
+    if not files: return None
     return max(files, key=os.path.getmtime)
-
 
 def load_model_and_meta():
     model_path = get_latest(os.path.join(RESULTS_DIR, "catboost_alpha20d_*.cbm"))
     meta_path  = get_latest(os.path.join(RESULTS_DIR, "neutralizer_alpha20d_*.pkl"))
-
-    if model_path is None or meta_path is None:
-        raise FileNotFoundError("Model veya meta dosyaları bulunamadı.")
-
+    if not model_path or not meta_path: raise FileNotFoundError("Model dosyaları yok.")
     model = CatBoostClassifier()
     model.load_model(model_path)
-
     meta = joblib.load(meta_path)
     return model, meta
 
-
-def compute_stop_loss(entry_price: float, row: pd.Series):
-    """
-    Gerçekçi SL:
-    - stop_level = entry * (1 + STOP_LOSS_PCT)
-    - Eğer OPEN <= stop_level → gap-stop → OPEN'dan çık
-    - Yoksa LOW <= stop_level → tam stop_level'den çık
-    - Diğer durumda stop tetiklenmez
-    """
-    stop_level = entry_price * (1.0 + STOP_LOSS_PCT)
-    today_open = row[OPEN_COL]
-    today_low  = row[LOW_COL]
-
-    if today_low <= stop_level:
-        if today_open <= stop_level:
-            exit_raw = today_open
-        else:
-            exit_raw = stop_level
-        return True, exit_raw, "STOP_LOSS"
-
-    return False, None, None
-
-
-# ============================
-# MAIN BACKTEST
-# ============================
-
 def main():
     os.makedirs(BACKTEST_DIR, exist_ok=True)
-
-    print(">> Loading model & data...")
+    print(">> Loading Data & Model...")
     model, meta = load_model_and_meta()
-    scaler: SectorStandardScaler = meta["sector_scaler"]
+    scaler = meta["sector_scaler"]
     features = meta["features"]
 
     df = pd.read_csv(DATA_PATH)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
 
-    # Feature matrix
-    X = df[features].replace([np.inf, -np.inf], np.nan)
-    X = X.fillna(df[features].median())
-    sector = df[SECTOR_COL].astype(str)
-
-    Xs = scaler.transform(X, sector)
+    # Feature Prep
+    X = df[features].replace([np.inf, -np.inf], np.nan).fillna(df[features].median())
+    Xs = scaler.transform(X, df[SECTOR_COL])
     df["score"] = model.predict_proba(Xs)[:, 1]
 
-    # Sadece test dönemi
     test = df[df["dataset_split"] == "test"].copy()
     test = test.sort_values(DATE_COL).reset_index(drop=True)
-
-    grouped = test.groupby(DATE_COL)
+    test_grouped = test.groupby(DATE_COL)
     dates = sorted(test[DATE_COL].unique())
-
-    # ============================
-    # STATE
-    # ============================
+    date_to_index = {d: i for i, d in enumerate(dates)}
 
     cash = INITIAL_CAPITAL
-
-    # Aktif pozisyonlar:
-    # { "symbol", "entry_date", "entry_price", "shares", "days_held" }
-    portfolio: List[Dict] = []
-
-    # Bekleyen emirler (T+1 işlenecek):
-    # SELL: {"type": "SELL", "symbol", "target_date", "reason"}
-    # BUY:  {"type": "BUY", "symbol", "target_date", "capital", "reason"}
-    pending_orders: List[Dict] = []
-
+    portfolio = [] 
     equity_curve = []
     trade_log = []
 
-    print(f">> Running backtest over {len(dates)} days...")
+    print(f">> Starting ROTATION BACKTEST on {len(dates)} days...")
 
-    for i, dt in enumerate(dates):
-        day = grouped.get_group(dt).set_index(SYMBOL_COL)
+    for dt in dates:
+        try:
+            today_data = test_grouped.get_group(dt).set_index(SYMBOL_COL)
+        except KeyError: continue
 
-        # ============================
-        # 1) BEKLEYEN EMİRLERİ T+1 OPEN'DA İŞLE
-        # ============================
+        idx = date_to_index[dt]
+        next_dt = dates[idx + 1] if idx + 1 < len(dates) else None
 
-        new_pending = []
-        for order in pending_orders:
-            if order["target_date"] != dt:
-                new_pending.append(order)
-                continue
+        # -------------------------------------------------
+        # 1) PLANLANMIŞ ÇIKIŞLAR (T+1 Sabah)
+        # -------------------------------------------------
+        for i in range(len(portfolio) - 1, -1, -1):
+            pos = portfolio[i]
+            if pos.get("exit_planned_date") == dt:
+                sym = pos["symbol"]
+                if sym not in today_data.index: continue
 
-            sym = order["symbol"]
-            if sym not in day.index:
-                # Hisse bugün işlem görmüyorsa emir beklemeye devam etsin
-                new_pending.append(order)
-                continue
+                raw_open = today_data.loc[sym][OPEN_COL]
+                exit_price = raw_open * (1 - SLIPPAGE_SELL)
 
-            open_raw = day.loc[sym, OPEN_COL]
+                revenue = pos["shares"] * exit_price
+                net_rev = revenue * (1 - COMMISSION)
+                cash += net_rev
 
-            if order["type"] == "SELL":
-                # Pozisyonu bul
-                pos_idx = None
-                for idx_p, p in enumerate(portfolio):
-                    if p["symbol"] == sym:
-                        pos_idx = idx_p
-                        break
-                if pos_idx is None:
-                    # Zaten stop olmuş vs. olabilir, görmezden gel
-                    continue
-
-                pos = portfolio[pos_idx]
-                entry_price = pos["entry_price"]
-                shares = pos["shares"]
-
-                exit_gross = open_raw * (1.0 - SLIPPAGE_SELL)
-                revenue = shares * exit_gross
-                net_revenue = revenue * (1.0 - COMMISSION)
-                cash += net_revenue
-
-                ret = exit_gross / entry_price - 1.0
-
+                trade_return = (exit_price / pos["entry_price"]) - 1
                 trade_log.append({
-                    "entry_date": pos["entry_date"],
-                    "exit_date": dt,
-                    "symbol": sym,
-                    "entry_price": entry_price,
-                    "exit_price": exit_gross,
-                    "shares": shares,
-                    "return": ret,
-                    "reason": order.get("reason", "PLANNED_EXIT"),
+                    "exit_date": dt, "symbol": sym, "entry_date": pos["entry_date"],
+                    "entry_price": pos["entry_price"], "exit_price": exit_price,
+                    "return": trade_return, "reason": pos.get("exit_reason_planned", "PLANNED"),
                     "days_held": pos["days_held"]
                 })
+                portfolio.pop(i)
 
-                portfolio.pop(pos_idx)
-
-            elif order["type"] == "BUY":
-                capital = order["capital"]
-
-                entry_gross = open_raw * (1.0 + SLIPPAGE_BUY)
-                shares = int(capital / entry_gross)
-                if shares <= 0:
-                    continue
-
-                cost = shares * entry_gross
-                net_cost = cost * (1.0 + COMMISSION)
-
-                if net_cost > cash:
-                    continue
-
-                cash -= net_cost
-
-                portfolio.append({
-                    "symbol": sym,
-                    "entry_date": dt,
-                    "entry_price": entry_gross,
-                    "shares": shares,
-                    "days_held": 0
-                })
-
-                trade_log.append({
-                    "entry_date": dt,
-                    "exit_date": None,
-                    "symbol": sym,
-                    "entry_price": entry_gross,
-                    "exit_price": None,
-                    "shares": shares,
-                    "return": None,
-                    "reason": order.get("reason", "ENTRY"),
-                    "days_held": 0
-                })
-
-        pending_orders = new_pending
-
-        # ============================
-        # 2) STOP-LOSS (BUGÜNÜN OHLC'YE GÖRE)
-        # ============================
-
-        for idx_p in range(len(portfolio) - 1, -1, -1):
-            pos = portfolio[idx_p]
+        # -------------------------------------------------
+        # 2) STOP-LOSS KONTROLÜ (Gün İçi)
+        # -------------------------------------------------
+        for i in range(len(portfolio) - 1, -1, -1):
+            pos = portfolio[i]
             sym = pos["symbol"]
-
-            if sym not in day.index:
-                # Veri yoksa sadece gün sayısını artır
+            if sym not in today_data.index:
                 pos["days_held"] += 1
                 continue
 
-            row = day.loc[sym]
-            entry_price = pos["entry_price"]
+            row = today_data.loc[sym]
+            stop_level = pos["entry_price"] * (1 + STOP_LOSS)
+            
+            exit_reason = None
+            exit_price = None
 
-            hit, exit_raw, reason = compute_stop_loss(entry_price, row)
+            if row[LOW_COL] <= stop_level:
+                exit_reason = "STOP_LOSS"
+                # Gap kontrolü
+                exit_price = row[OPEN_COL] if row[OPEN_COL] <= stop_level else stop_level
 
-            if hit:
-                exit_gross = exit_raw * (1.0 - SLIPPAGE_SELL)
-                revenue = pos["shares"] * exit_gross
-                net_revenue = revenue * (1.0 - COMMISSION)
-                cash += net_revenue
-
-                ret = exit_gross / entry_price - 1.0
-
+            if exit_reason:
+                revenue = pos["shares"] * exit_price
+                net_rev = revenue * (1 - COMMISSION)
+                cash += net_rev
+                
+                trade_return = (exit_price / pos["entry_price"]) - 1
                 trade_log.append({
-                    "entry_date": pos["entry_date"],
-                    "exit_date": dt,
-                    "symbol": sym,
-                    "entry_price": entry_price,
-                    "exit_price": exit_gross,
-                    "shares": pos["shares"],
-                    "return": ret,
-                    "reason": reason,
+                    "exit_date": dt, "symbol": sym, "entry_date": pos["entry_date"],
+                    "entry_price": pos["entry_price"], "exit_price": exit_price,
+                    "return": trade_return, "reason": exit_reason,
                     "days_held": pos["days_held"]
                 })
-
-                portfolio.pop(idx_p)
+                portfolio.pop(i)
             else:
                 pos["days_held"] += 1
 
-        # ============================
-        # 3) GÜNLÜK EQUITY (KAPANIŞ FİYATIYLA MTM)
-        # ============================
+        # -------------------------------------------------
+        # 3) ANALİZ & KARAR (ROTASYON DAHİL)
+        # -------------------------------------------------
+        if next_dt is not None:
+            today_sorted = today_data.sort_values("score", ascending=False)
+            top_symbols = list(today_sorted.head(TOP_K).index)
+            
+            # Dışarıdaki (Portföyde olmayan) en iyi adayı bul
+            current_holdings = [p['symbol'] for p in portfolio]
+            candidates_outside = today_data[~today_data.index.isin(current_holdings)]
+            
+            best_outside_score = 0
+            if not candidates_outside.empty:
+                best_outside_score = candidates_outside["score"].max()
 
-        port_val = 0.0
-        for p in portfolio:
-            sym = p["symbol"]
-            if sym in day.index:
-                px = day.loc[sym, PRICE_COL]
-            else:
-                px = p["entry_price"]
-            port_val += p["shares"] * px
-
-        total_equity = cash + port_val
-        equity_curve.append({"date": dt, "equity": total_equity})
-
-        # Son gün ise yeni emir planlama
-        if i == len(dates) - 1:
-            continue
-
-        next_dt = dates[i + 1]
-
-        # ============================
-        # 4) YARIN İÇİN EXIT PLANLAMA (TIME_EXIT + SWAP)
-        # ============================
-
-        day_sorted = day.sort_values("score", ascending=False)
-
-        # Mevcut pozisyon skorları (bugünkü skor)
-        pos_scores = []
-        for p in portfolio:
-            sym = p["symbol"]
-            if sym in day.index:
-                sc = float(day.loc[sym, "score"])
-            else:
-                sc = -999.0
-            pos_scores.append((p, sc))
-
-        pos_scores.sort(key=lambda x: x[1])  # en kötü başa
-
-        symbols_in_port = {p["symbol"] for p in portfolio}
-
-        # SWAP adayları: portföyde olmayan en iyi TOP_K
-        best_candidates = []
-        for sym, row in day_sorted.head(TOP_K).iterrows():
-            if sym in symbols_in_port:
-                continue
-            best_candidates.append((sym, float(row["score"])))
-
-        # EXIT / SWAP planlama
-        sell_symbols = set()      # aynı sembole 2 kere SELL yazmamak için
-        time_exit_symbols = set()
-        swap_sell_symbols = set()
-
-        # TIME EXIT: HORIZON dolanları yarın açılışta sat
-        for p in portfolio:
-            if p["days_held"] >= HORIZON_DAYS:
-                sym = p["symbol"]
-                if sym in sell_symbols:
+            for pos in portfolio:
+                if pos.get("exit_planned_date") is not None: continue
+                
+                sym = pos["symbol"]
+                if sym not in today_data.index: continue
+                
+                current_score = today_data.loc[sym, "score"]
+                
+                # --- ÇIKIŞ SENARYOLARI ---
+                
+                # A) SÜRE DOLDU
+                if pos["days_held"] >= HORIZON:
+                    pos["exit_planned_date"] = next_dt
+                    pos["exit_reason_planned"] = "TIME_EXIT"
                     continue
-                sell_symbols.add(sym)
-                time_exit_symbols.add(sym)
+                
+                # B) MODEL + TP (Kâr aldım ve model artık sevmiyor)
+                close = today_data.loc[sym][PRICE_COL]
+                ret_close = (close / pos["entry_price"]) - 1
+                if (ret_close >= TAKE_PROFIT) and (sym not in top_symbols):
+                    pos["exit_planned_date"] = next_dt
+                    pos["exit_reason_planned"] = "MODEL_TP"
+                    continue
+                
+                # C) ROTASYON (Zayıfı at, güçlüyü al) - YENİ EKLEME 🔄
+                # Eğer elimdeki < 0.50 VE Dışarıda > 0.80 varsa
+                if (current_score < ROTATION_EXIT_THRESHOLD) and \
+                   (best_outside_score > ROTATION_ENTRY_THRESHOLD):
+                    
+                    pos["exit_planned_date"] = next_dt
+                    pos["exit_reason_planned"] = "SCORE_ROTATION"
+                    # Not: Bu hisse yarın sabah satılacak, yer açılacak.
+                    # Yeni alım da yarın sabah yapılacak.
 
-        # Pair bazlı SWAP planlama
-        # (worst_pos, worst_score) ↔ (best_sym, best_score)
-        max_swaps = min(SWAP_LIMIT, len(pos_scores), len(best_candidates))
-        swap_pairs = []
-        used_worst = set()
-        used_best = set()
+        # -------------------------------------------------
+        # 4) YENİ GİRİŞLER (ENTRY)
+        # -------------------------------------------------
+        # Not: Rotasyon ile "Yarın Satılacak" olanlar henüz portföyden düşmedi.
+        # Slot kontrolü yaparken "exit_planned_date"i dolu olanları "Sanal Boşluk" saymalıyız
+        # ki yarın sabah hem satıp hem yerine yenisini alabilelim.
         
-        for k in range(max_swaps):
-            if k >= len(pos_scores) or k >= len(best_candidates):
-                break
-                
-            worst_pos, worst_score = pos_scores[k]
-            best_sym, best_score = best_candidates[k]
+        actual_holdings = len([p for p in portfolio if p.get("exit_planned_date") is None])
+        free_slots = MAX_POSITIONS - actual_holdings
 
-            if best_score - worst_score < SWAP_GAP:
-                continue
-            if worst_pos["symbol"] in used_worst:
-                continue
-            if best_sym in used_best:
-                continue
-            if worst_pos["symbol"] in time_exit_symbols:
-                continue  # TIME_EXIT ile zaten çıkacak
-                
-            used_worst.add(worst_pos["symbol"])
-            used_best.add(best_sym)
-            swap_pairs.append((worst_pos, best_sym))
+        if free_slots > 0 and next_dt is not None:
+            candidates = today_sorted.head(TOP_K + 5) # Biraz geniş bak
+            
+            try:
+                next_day_data = test_grouped.get_group(next_dt).set_index(SYMBOL_COL)
+            except: next_day_data = None
 
-        # SWAP için SELL emirleri
-        for worst_pos, best_sym in swap_pairs:
-            worst_sym = worst_pos["symbol"]
-            if worst_sym in sell_symbols:
-                continue  # Zaten TIME_EXIT ile işaretlenmiş
-            sell_symbols.add(worst_sym)
-            swap_sell_symbols.add(worst_sym)
+            if next_day_data is not None:
+                for sym, row in candidates.iterrows():
+                    if free_slots <= 0: break
+                    
+                    # Zaten portföyde mi (ve yarın satılmıyor mu?)
+                    # Eğer yarın satılacaksa, "zaten portföyde" sayma, çünkü satıp geri almayız (mantıksız)
+                    # Ama aynı hisseyi satıp tekrar almak komisyon kaybı olur.
+                    # Basit kural: Portföyde adı geçen hisseyi alma.
+                    if any(p["symbol"] == sym for p in portfolio):
+                        continue
 
-        # Tüm SELL emirlerini yaz
-        for sym in sell_symbols:
-            pending_orders.append({
-                "type": "SELL",
-                "symbol": sym,
-                "target_date": next_dt,
-                "reason": "TIME_EXIT" if sym in time_exit_symbols else "SWAP"
-            })
+                    if sym not in next_day_data.index: continue
 
-        # SWAP BUY emirleri
-        for worst_pos, best_sym in swap_pairs:
-            worst_sym = worst_pos["symbol"]
-            # Sermaye tahmini: bugünkü kapanış değeri
-            if worst_sym in day.index:
-                est_capital = worst_pos["shares"] * float(day.loc[worst_sym, PRICE_COL])
-            else:
-                # Veri yoksa entry fiyatından tahmin et
-                est_capital = worst_pos["shares"] * worst_pos["entry_price"]
+                    # ALIM EMRİ
+                    raw_open = next_day_data.loc[sym][OPEN_COL]
+                    entry_price = raw_open * (1 + SLIPPAGE_BUY)
+                    
+                    # Sermaye hesabı (Basitçe kalan nakiti değil, toplam portföy / slot hedefi gibi düşünelim)
+                    # Şimdilik basit: (Nakit + Yarın gelecek nakit) / Boş Slot
+                    # Ama yarın gelecek nakiti bilmediğimiz için mevcudu kullanıyoruz.
+                    capital_per_trade = cash / max(1, free_slots)
+                    
+                    shares = int(capital_per_trade / entry_price)
+                    if shares > 0:
+                        cost = shares * entry_price
+                        total_cost = cost * (1 + COMMISSION)
+                        
+                        if cash >= total_cost:
+                            cash -= total_cost
+                            portfolio.append({
+                                "symbol": sym, "entry_price": entry_price, "shares": shares,
+                                "entry_date": next_dt, "days_held": 0,
+                                "exit_planned_date": None, "exit_reason_planned": None
+                            })
+                            free_slots -= 1
 
-            pending_orders.append({
-                "type": "BUY",
-                "symbol": best_sym,
-                "target_date": next_dt,
-                "capital": est_capital,
-                "reason": "SWAP_ENTRY"
-            })
+        # -------------------------------------------------
+        # 5) EQUITY
+        # -------------------------------------------------
+        port_val = 0
+        for pos in portfolio:
+            sym = pos["symbol"]
+            px = today_data.loc[sym][PRICE_COL] if sym in today_data.index else pos["entry_price"]
+            port_val += pos["shares"] * px
+        
+        equity_curve.append({"date": dt, "equity": cash + port_val})
 
-        # ============================
-        # 5) YENİ ENTRY PLANLAMA (BOŞ SLOT VARSA)
-        # ============================
-
-        # Yarının pozisyon sayısı ~ şu anki pozisyon sayısı - time_exit sayısı
-        positions_tomorrow = len(portfolio) - len(time_exit_symbols)
-        free_slots = max(0, MAX_POSITIONS - positions_tomorrow)
-
-        if free_slots > 0:
-            # Şu an portföyde olan + swap ile alınacak sembolleri hariç tut
-            symbols_blocked = symbols_in_port.union(
-                {pair[1] for pair in swap_pairs}
-            )
-
-            # Adaylar: bugünkü en yüksek skorlu hisseler
-            extra_candidates = []
-            for sym, row in day_sorted.iterrows():
-                if sym in symbols_blocked:
-                    continue
-                extra_candidates.append(sym)
-                if len(extra_candidates) >= free_slots:
-                    break
-
-            if extra_candidates:
-                # Bugünkü nakdi eşit bölüyoruz
-                capital_per_trade = cash / free_slots if free_slots > 0 else 0.0
-
-                for sym in extra_candidates:
-                    pending_orders.append({
-                        "type": "BUY",
-                        "symbol": sym,
-                        "target_date": next_dt,
-                        "capital": capital_per_trade,
-                        "reason": "ENTRY"
-                    })
-
-    # ============================
-    # RAPORLAMA
-    # ============================
-
+    # SONUÇLAR
     bt = pd.DataFrame(equity_curve)
     tr = pd.DataFrame(trade_log)
+    final_eq = bt["equity"].iloc[-1]
+    ret = final_eq / INITIAL_CAPITAL - 1
+    
+    print("\n===== ROTATION BACKTEST SONUÇLARI =====")
+    print(f"Final: {final_eq:,.2f} TL | Getiri: %{ret*100:.2f}")
+    print(f"Toplam İşlem: {len(tr)}")
+    if not tr.empty:
+        print("Çıkış Sebepleri:")
+        print(tr["reason"].value_counts())
 
-    if not bt.empty:
-        initial = INITIAL_CAPITAL
-        final = bt["equity"].iloc[-1]
-        total_ret = final / initial - 1.0
-
-        daily_ret = bt["equity"].pct_change().dropna()
-        if len(daily_ret) > 1:
-            mu = daily_ret.mean()
-            sigma = daily_ret.std() + 1e-12
-            sharpe_daily = mu / sigma
-            sharpe_annual = sharpe_daily * np.sqrt(252)
-        else:
-            sharpe_annual = np.nan
-
-        cagr = (final / initial) ** (252 / len(bt)) - 1.0
-
-        print("\n===== MIDAS SWAP BACKTEST RESULT =====")
-        print(f"Initial: {initial:,.2f} | Final: {final:,.2f}")
-        print(f"Total Return: {total_ret:.2%}")
-        print(f"CAGR: {cagr:.2%}")
-        print(f"Annual Sharpe: {sharpe_annual:.2f}")
-        print(f"Total Trades: {len(tr)}")
-    else:
-        print("Equity curve boş, muhtemelen veri/sinyal yok.")
-
-    out_curve  = os.path.join(BACKTEST_DIR, "midas_swap_equity.csv")
-    out_trades = os.path.join(BACKTEST_DIR, "midas_swap_trades.csv")
-    out_png    = os.path.join(BACKTEST_DIR, "midas_swap_equity.png")
-
-    bt.to_csv(out_curve, index=False)
-    tr.to_csv(out_trades, index=False)
-
-    if not bt.empty:
-        plt.figure(figsize=(10, 5))
-        plt.plot(bt["date"], bt["equity"], label="Equity")
-        plt.title("Midas-Style Swap Backtest Equity")
-        plt.grid(alpha=0.3)
-        plt.legend()
-        plt.tight_layout()
-        plt.savefig(out_png)
-        plt.close()
-
-    print(f"\nSaved equity to: {out_curve}")
-    print(f"Saved trades to: {out_trades}")
-    if not bt.empty:
-        print(f"Saved equity plot to: {out_png}")
-
+    bt.to_csv(os.path.join(BACKTEST_DIR, "rotation_bt.csv"), index=False)
+    tr.to_csv(os.path.join(BACKTEST_DIR, "rotation_trades.csv"), index=False)
+    
+    plt.figure(figsize=(10,6))
+    plt.plot(bt["date"], bt["equity"])
+    plt.title("Backtest with SCORE ROTATION")
+    plt.savefig(os.path.join(BACKTEST_DIR, "rotation_equity.png"))
+    plt.close()
 
 if __name__ == "__main__":
     main()

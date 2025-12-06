@@ -6,7 +6,11 @@ Bu modül proje genelinde kullanılan ayarları ve yolları yönetir.
 import os
 from pathlib import Path
 from typing import Dict, Any
+<<<<<<< HEAD
 from datetime import datetime, timedelta
+=======
+from datetime import datetime
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
 import toml
 from dotenv import load_dotenv
 
@@ -90,8 +94,9 @@ def load_settings() -> Dict[str, Any]:
     return settings
 
 
-def get_evds_settings() -> Dict[str, Any]:
+def get_evds_settings() -> Dict:
     """
+<<<<<<< HEAD
     EVDS ile ilgili ayarları getirir.
     
     NOT: end_date otomatik olarak SON İŞ GÜNÜNE ayarlanır.
@@ -105,6 +110,32 @@ def get_evds_settings() -> Dict[str, Any]:
     # end_date otomatik olarak son iş günü
     evds["end_date"] = get_last_business_day().strftime("%Y-%m-%d")
     return evds
+=======
+    EVDS ayarlarını döndürür.
+    end_date otomatik olarak bugünün tarihine güncellenir.
+    """
+    settings = load_settings()
+    evds_config = settings.get("evds", {})
+    
+    # end_date'i bugüne güncelle
+    evds_config["end_date"] = datetime.now().strftime("%Y-%m-%d")
+    
+    return evds_config
+
+
+def get_stocks_settings() -> Dict:
+    """
+    Hisse senedi ayarlarını döndürür.
+    end_date otomatik olarak bugünün tarihine güncellenir.
+    """
+    settings = load_settings()
+    stocks_config = settings.get("stocks", {})
+    
+    # end_date'i bugüne güncelle
+    stocks_config["end_date"] = datetime.now().strftime("%Y-%m-%d")
+    
+    return stocks_config
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
 
 
 def get_stock_symbols() -> list:
@@ -114,26 +145,33 @@ def get_stock_symbols() -> list:
     Returns:
         list: Hisse sembolleri listesi
     """
-    settings = load_settings()
-    stocks_config = settings.get("stocks", {})
+    stocks_config = get_stocks_settings()
     return stocks_config.get("symbols", [])
 
 
 def get_stock_date_range() -> tuple:
     """
+<<<<<<< HEAD
     Hisse verileri için tarih aralığını döndürür.
     
     NOT: end_date otomatik olarak SON İŞ GÜNÜNE ayarlanır.
     Haftasonu ise Cuma'ya geri gider.
+=======
+    Hisse verileri için tarih aralığını config'den getirir.
+    end_date otomatik olarak bugüne güncellenir.
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
     
     Returns:
         tuple: (start_date, end_date) tuple'ı
     """
-    settings = load_settings()
-    stocks_config = settings.get("stocks", {})
+    stocks_config = get_stocks_settings()  # Otomatik end_date güncellemesi
     start_date = stocks_config.get("start_date", "2020-01-01")
+<<<<<<< HEAD
     # end_date otomatik olarak son iş günü
     end_date = get_last_business_day().strftime("%Y-%m-%d")
+=======
+    end_date = stocks_config.get("end_date", datetime.now().strftime("%Y-%m-%d"))
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
     return start_date, end_date
 
 

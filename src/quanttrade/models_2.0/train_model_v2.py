@@ -18,6 +18,7 @@ from typing import Dict, Optional
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.metrics import roc_auc_score, precision_score, recall_score, f1_score, roc_curve
 from sklearn.model_selection import BaseCrossValidator
+from sklearn.linear_model import LinearRegression
 from catboost import CatBoostClassifier, Pool
 
 

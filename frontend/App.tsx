@@ -7,6 +7,8 @@ import { PipelineView } from './components/PipelineView';
 import { TelegramView } from './components/TelegramView';
 import { SettingsView } from './components/SettingsView';
 import { LoginView } from './components/LoginView';
+import { PositionsTable } from './components/PositionsTable';
+import { GPTAnalysis } from './components/GPTAnalysis';
 import { portfolioAPI, pipelineAPI } from './services/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { LayoutDashboard, Settings, Layers, Send, LogOut, Menu, Play, RefreshCw, Terminal } from 'lucide-react';
@@ -138,43 +140,10 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-200 selection:bg-emerald-500/30 pb-20 md:pb-0">
+    <div className="min-h-screen bg-zinc-950 text-zinc-200 selection:bg-emerald-500/30 flex">
 
-      {/* Hamburger Menu Button - Desktop */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-zinc-900 border border-white/5 hover:bg-zinc-800 transition-all hidden md:block"
-        title={sidebarOpen ? "Close menu" : "Open menu"}
-      >
-        <Menu size={20} className="text-zinc-400" />
-      </button>
-
-      {/* Hamburger Menu Button - Mobile */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="fixed top-4 left-4 z-50 p-3 rounded-xl bg-zinc-900 border border-white/5 hover:bg-zinc-800 transition-all md:hidden"
-        title="Menu"
-      >
-        <Menu size={20} className="text-zinc-400" />
-      </button>
-
-      {/* Backdrop overlay for mobile */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-30 md:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Desktop Sidebar - Collapsible */}
-      <nav className={`
-        fixed left-0 top-0 h-full bg-zinc-900 border-r border-white/5 
-        flex-col items-center py-8 gap-8 z-40
-        transition-transform duration-300 ease-in-out
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:-translate-x-full'}
-        w-64 md:w-20
-        flex md:flex
-      `}>
+      {/* Sidebar - Always Visible */}
+      <nav className="w-20 min-h-screen bg-zinc-900 border-r border-white/5 flex flex-col items-center py-8 gap-8 hidden md:flex">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-emerald-500/20">
           <span className="font-bold text-white">A</span>
         </div>
@@ -271,7 +240,7 @@ function App() {
       </nav>
 
       {/* Main Content */}
-      <main className={`p-4 md:p-6 lg:p-10 max-w-[1920px] mx-auto min-h-screen transition-all duration-300 ${sidebarOpen ? 'md:pl-24' : 'md:pl-20'}`}>
+      <main className="flex-1 p-4 md:p-6 lg:p-10 max-w-[1920px] mx-auto min-h-screen">
         <DashboardHeader />
 
         {currentView === 'dashboard' && (
@@ -332,10 +301,20 @@ function App() {
             {/* Top KPI Cards */}
             <StatsGrid data={data} />
 
-            {/* Middle Section: Charts */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+            {/* Equity History Chart */}
+            {equityHistory && equityHistory.length > 0 && (
+              <EquityChart data={equityHistory} />
+            )}
 
-              {/* Main Equity Curve */}
+            {/* Positions Table */}
+            <PositionsTable positions={data?.positions || []} />
+
+            {/* GPT Analysis */}
+            <GPTAnalysis />
+
+            {/* Bottom Row: Equity Chart + Capital Allocation */}
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {/* Equity Curve */}
               <div className="lg:col-span-2 bg-zinc-900 border border-white/5 rounded-2xl p-4 md:p-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                   <div>

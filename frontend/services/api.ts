@@ -33,13 +33,21 @@ export const portfolioAPI = {
 
 // Pipeline API
 export const pipelineAPI = {
-  run: async (script: 'pipeline' | 'portfolio_manager' = 'pipeline') => {
+  run: async (script_type: string = 'pipeline') => {
     const response = await fetch(`${API_BASE_URL}/api/pipeline/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ script }),
+      body: JSON.stringify({ script: script_type })
     });
-    if (!response.ok) throw new Error('Failed to run pipeline');
+    if (!response.ok) throw new Error('Failed to start pipeline');
+    return response.json();
+  },
+
+  stop: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/pipeline/stop`, {
+      method: 'POST',
+    });
+    if (!response.ok) throw new Error('Failed to stop pipeline');
     return response.json();
   },
 
@@ -49,8 +57,8 @@ export const pipelineAPI = {
     return response.json();
   },
 
-  getLogs: async (maxLines: number = 100) => {
-    const response = await fetch(`${API_BASE_URL}/api/pipeline/logs?max_lines=${maxLines}`);
+  getLogs: async (sinceLine: number = 0) => {
+    const response = await fetch(`${API_BASE_URL}/api/pipeline/logs?since_line=${sinceLine}`);
     if (!response.ok) throw new Error('Failed to fetch pipeline logs');
     return response.json();
   },
@@ -117,4 +125,20 @@ export const telegramAPI = {
     if (!response.ok) throw new Error('Failed to broadcast message');
     return response.json();
   },
+
+  getMessages: async (limit: number = 50) => {
+    const response = await fetch(`${API_BASE_URL}/api/telegram/messages?limit=${limit}`);
+    if (!response.ok) throw new Error('Failed to fetch message history');
+    return response.json();
+  },
 };
+
+// GPT Analysis API
+export const gptAPI = {
+  getAnalysis: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/gpt/analysis`);
+    if (!response.ok) throw new Error('Failed to fetch GPT analysis');
+    return response.json();
+  },
+};
+

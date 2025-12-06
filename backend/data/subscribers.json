@@ -1,0 +1,18 @@
+[
+  {
+    "id": 4,
+    "name": "Furkan Yılmaz",
+    "chat_id": "1967498331",
+    "role": "Admin",
+    "active": true,
+    "avatar_color": "bg-cyan-600"
+  },
+  {
+    "id": 5,
+    "name": "Aleyna Taşdemir",
+    "chat_id": "8378766848",
+    "role": "Admin",
+    "active": true,
+    "avatar_color": "bg-cyan-600"
+  }
+]

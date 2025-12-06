@@ -8,22 +8,29 @@ interface StatsGridProps {
 
 export const StatsGrid: React.FC<StatsGridProps> = ({ data }) => {
   // Calculate total equity (Cash + Value of positions)
-  // Since positions are empty in the example, it's just cash. 
-  // But logic handles future populated positions.
-  const positionValue = data.positions.reduce((acc, pos) => acc + (pos.shares * pos.entry_price), 0);
+  // Use current_price if available, otherwise use avg_price
+  const positionValue = data.positions.reduce((acc, pos) => {
+    const price = pos.current_price || pos.avg_price;
+    return acc + (pos.shares * price);
+  }, 0);
   const totalEquity = data.cash + positionValue;
-  
-  // Mock daily return for visualization
-  const dailyReturnPct = 1.25; 
-  const dailyReturnVal = totalEquity * (dailyReturnPct / 100);
+
+  // Calculate total profit/loss
+  const totalCost = data.positions.reduce((acc, pos) => {
+    return acc + (pos.shares * pos.avg_price);
+  }, 0);
+  const totalProfit = positionValue - totalCost;
+  const totalProfitPct = totalCost > 0 ? (totalProfit / totalCost) * 100 : 0;
 
   const stats = [
     {
       label: 'Total Equity',
       value: `₺${totalEquity.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-      change: `+₺${dailyReturnVal.toLocaleString()} (${dailyReturnPct}%)`,
+      change: totalProfit >= 0
+        ? `+₺${totalProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} (+${totalProfitPct.toFixed(2)}%)`
+        : `₺${totalProfit.toLocaleString(undefined, { maximumFractionDigits: 0 })} (${totalProfitPct.toFixed(2)}%)`,
       icon: Wallet,
-      trend: 'up',
+      trend: totalProfit >= 0 ? 'up' : 'down',
       color: 'text-white'
     },
     {
@@ -55,27 +62,26 @@ export const StatsGrid: React.FC<StatsGridProps> = ({ data }) => {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
       {stats.map((stat, index) => (
-        <div 
-          key={index} 
+        <div
+          key={index}
           className="relative overflow-hidden bg-zinc-900 border border-white/5 rounded-2xl p-6 group hover:border-white/10 transition-all duration-300"
         >
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <stat.icon size={64} />
           </div>
-          
+
           <div className="flex items-center gap-3 mb-4">
             <div className={`p-2 rounded-lg bg-white/5 ${stat.color}`}>
               <stat.icon size={20} />
             </div>
             <span className="text-sm font-medium text-zinc-400">{stat.label}</span>
           </div>
-          
+
           <div className="relative z-10">
             <h3 className="text-2xl font-bold font-mono tracking-tight mb-1">{stat.value}</h3>
-            <div className={`text-xs font-medium flex items-center gap-1 ${
-              stat.trend === 'up' ? 'text-emerald-500' : 
+            <div className={`text-xs font-medium flex items-center gap-1 ${stat.trend === 'up' ? 'text-emerald-500' :
               stat.trend === 'down' ? 'text-rose-500' : 'text-zinc-500'
-            }`}>
+              }`}>
               {stat.change}
             </div>
           </div>

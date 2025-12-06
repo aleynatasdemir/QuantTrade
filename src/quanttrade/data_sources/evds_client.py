@@ -318,12 +318,22 @@ class EVDSClient:
             "TP.OECDONCU.USA": 5,
         }
         
-        for friendly_name, evds_code in series_mapping.items():
-            logger.info(f"Çekiliyor: {friendly_name} ({evds_code})")
+        
+        total_series = len(series_mapping)
+        successful_series = 0
+        
+        for idx, (friendly_name, evds_code) in enumerate(series_mapping.items(), 1):
+            # Compact log - sadece ilerleme
+            if idx == 1 or idx == total_series:
+                logger.info(f"📊 EVDS {idx}/{total_series} seri çekiliyor...")
             
             try:
                 freq = series_frequencies.get(evds_code, 1)
                 
+<<<<<<< HEAD
+=======
+                # Veri çek
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
                 df_series = self.fetch_series(
                     series_codes=evds_code,
                     start_date=actual_start_date,
@@ -332,7 +342,7 @@ class EVDSClient:
                 )
                 
                 if df_series.empty:
-                    logger.warning(f"{friendly_name} için veri çekilemedi, atlanıyor")
+                    logger.warning(f"⚠️  {friendly_name} - Veri yok")
                     continue
                 
                 if len(df_series.columns) == 1:
@@ -341,17 +351,30 @@ class EVDSClient:
                     df_series = df_series.iloc[:, 0:1]
                     df_series.columns = [friendly_name]
                 
+<<<<<<< HEAD
                 df_new = df_new.join(df_series, how='left')
                 logger.info(f"✓ {friendly_name}: {len(df_series)} satır eklendi")
+=======
+                # Ana DataFrame'e ekle
+                df_combined = df_combined.join(df_series, how='left')
+                successful_series += 1
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
                 
             except Exception as e:
-                logger.error(f"✗ {friendly_name} çekilirken hata: {e}")
+                logger.error(f"❌ {friendly_name} - {str(e)[:50]}")
                 continue
         
+<<<<<<< HEAD
         if df_new.empty or df_new.shape[1] == 0:
             logger.warning("Yeni veri çekilemedi")
             if not old_df.empty:
                 return str(output_path)
+=======
+        logger.info(f"✅ EVDS: {successful_series}/{total_series} seri başarılı")
+        
+        if df_combined.empty or df_combined.shape[1] == 0:
+            logger.warning("Hiç veri çekilemedi")
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
             return ""
         
         # Eski ve yeni veriyi birleştir

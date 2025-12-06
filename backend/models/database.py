@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 from contextlib import contextmanager
 import os
-from backend.config import settings
+from config import settings
 
 # Database URL from environment
 DATABASE_URL = os.getenv(

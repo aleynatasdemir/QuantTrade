@@ -13,14 +13,14 @@ def test_imports():
     """Test all imports"""
     print("🔍 Testing imports...")
     try:
-        from backend.models.database import engine, get_db_context, init_db
+        from models.database import engine, get_db_context, init_db
         print("   ✅ Database module")
     except Exception as e:
         print(f"   ❌ Database module: {e}")
         return False
     
     try:
-        from backend.models.orm_models import (
+        from models.orm_models import (
             User, Portfolio, Position, Trade, Signal, 
             PriceData, MacroData, ExecutionLog
         )
@@ -30,14 +30,14 @@ def test_imports():
         return False
     
     try:
-        from backend.services.enhanced_portfolio_service import enhanced_portfolio_service
+        from services.enhanced_portfolio_service import enhanced_portfolio_service
         print("   ✅ Enhanced portfolio service")
     except Exception as e:
         print(f"   ❌ Enhanced portfolio service: {e}")
         return False
     
     try:
-        from backend.services.data_integration_service import data_integration_service
+        from services.data_integration_service import data_integration_service
         print("   ✅ Data integration service")
     except Exception as e:
         print(f"   ❌ Data integration service: {e}")
@@ -50,7 +50,7 @@ def test_database_connection():
     """Test database connection"""
     print("\n🗄️ Testing database connection...")
     try:
-        from backend.models.database import engine
+        from models.database import engine
         with engine.connect() as connection:
             result = connection.execute("SELECT 1 as connected")
             print("   ✅ Database connected")
@@ -65,8 +65,8 @@ def test_table_existence():
     """Test that all tables exist"""
     print("\n📊 Checking tables...")
     try:
-        from backend.models.database import get_db_context
-        from backend.models.orm_models import (
+        from models.database import get_db_context
+        from models.orm_models import (
             User, Portfolio, Position, Trade, Signal,
             PriceData, MacroData, ExecutionLog
         )
@@ -155,8 +155,8 @@ def test_user_and_portfolio():
     """Test that demo user and portfolio exist"""
     print("\n👤 Checking demo user and portfolio...")
     try:
-        from backend.models.database import get_db_context
-        from backend.models.orm_models import User, Portfolio
+        from models.database import get_db_context
+        from models.orm_models import User, Portfolio
         
         with get_db_context() as db:
             user = db.query(User).filter(User.username == "demo").first()
@@ -189,7 +189,7 @@ def test_data_integration():
     """Test data integration services"""
     print("\n🔄 Testing data integration...")
     try:
-        from backend.services.data_integration_service import data_integration_service
+        from services.data_integration_service import data_integration_service
         
         # Try loading master_df
         master_df = data_integration_service.load_master_df()
@@ -212,7 +212,7 @@ def test_portfolio_service():
     """Test portfolio service"""
     print("\n📈 Testing portfolio service...")
     try:
-        from backend.services.enhanced_portfolio_service import enhanced_portfolio_service
+        from services.enhanced_portfolio_service import enhanced_portfolio_service
         
         # Get portfolio state (with fallback)
         state = enhanced_portfolio_service.get_portfolio_state(portfolio_id=1, use_file_fallback=True)

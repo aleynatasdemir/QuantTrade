@@ -4,16 +4,28 @@ Telegram Bot Service - Manage Telegram bot and subscribers
 import json
 from pathlib import Path
 from typing import List, Optional, Dict
+from pydantic import BaseModel
 from datetime import datetime
 from telegram import Bot
 from telegram.error import TelegramError
+<<<<<<< HEAD
 from config import settings
 from models.schemas import (
     TelegramConfig, 
+=======
+from backend.config import settings
+from backend.models.schemas import (
+>>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
     TelegramSubscriber, 
     TelegramSubscriberCreate,
     BroadcastMessage
 )
+
+
+class TelegramConfig(BaseModel):
+    bot_token: Optional[str] = None  # Made optional
+    bot_username: str = "@quant_alpha_bot"
+    test_mode: bool = True
 
 
 class TelegramService:
@@ -173,6 +185,9 @@ class TelegramService:
         active_subscribers = [sub for sub in self.subscribers if sub.active]
         
         if self.config.test_mode:
+            # Log message to history even in test mode
+            self._log_message_to_history(broadcast)
+            
             return {
                 "status": "success",
                 "message": f"[TEST MODE] Would broadcast to {len(active_subscribers)} subscribers",
@@ -192,6 +207,10 @@ class TelegramService:
                 print(f"Failed to send to {sub.name} ({sub.chat_id}): {e}")
                 failed += 1
         
+        # Log successful broadcast to history
+        if sent > 0:
+            self._log_message_to_history(broadcast)
+        
         return {
             "status": "success",
             "message": f"Broadcast completed: {sent} sent, {failed} failed",
@@ -199,8 +218,87 @@ class TelegramService:
             "failed": failed
         }
     
-    def _format_broadcast_message(self, broadcast: BroadcastMessage) -> str:
+    def _log_message_to_history(self, broadcast):
+        """Log broadcast message to history file"""
+        from datetime import datetime
+        import json
+        
+        try:
+            history = []
+            history_path = settings.get_absolute_path("backend/data/message_history.json")
+            history_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Load existing history
+            if history_path.exists():
+                try:
+                    with open(history_path, 'r', encoding='utf-8') as f:
+                        history = json.load(f)
+                except:
+                    history = []
+            
+            # Handle both dict and BroadcastMessage
+            if isinstance(broadcast, dict):
+                message_entry = {
+                    "id": len(history) + 1,
+                    "type": broadcast.get("message_type", "INFO"),
+                    "symbol": broadcast.get("symbol", "SYSTEM"),
+                    "price": broadcast.get("price", 0),
+                    "message": broadcast.get("message", ""),
+                    "timestamp": datetime.now().strftime("%H:%M"),
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "status": "SENT"
+                }
+            else:
+                message_entry = {
+                    "id": len(history) + 1,
+                    "type": broadcast.message_type,
+                    "symbol": broadcast.symbol or "SYSTEM",
+                    "price": broadcast.price or 0,
+                    "message": broadcast.message,
+                    "timestamp": datetime.now().strftime("%H:%M"),
+                    "date": datetime.now().strftime("%Y-%m-%d"),
+                    "status": "SENT"
+                }
+            
+            history.append(message_entry)
+            
+            # Keep only last 100 messages
+            history = history[-100:]
+            
+            # Save to file
+            with open(history_path, 'w', encoding='utf-8') as f:
+                json.dump(history, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"Failed to log message history: {e}")
+    
+    def get_message_history(self, limit: int = 50) -> List[Dict]:
+        """Get broadcast message history"""
+        import json
+        
+        history_path = settings.get_absolute_path("backend/data/message_history.json")
+        
+        if not history_path.exists():
+            return []
+        
+        try:
+            with open(history_path, 'r', encoding='utf-8') as f:
+                history = json.load(f)
+            
+            # Return most recent messages first
+            return list(reversed(history[-limit:]))
+        except Exception as e:
+            print(f"Failed to load message history: {e}")
+            return []
+    
+    def _format_broadcast_message(self, broadcast) -> str:
         """Format a broadcast message"""
+        # Handle both dict and BroadcastMessage model
+        if isinstance(broadcast, dict):
+            message = broadcast.get('message', '')
+            # For simple text broadcasts, return as-is
+            return message
+        
+        # Original BroadcastMessage logic
         icon = "📈" if broadcast.message_type == "BUY" else "📉" if broadcast.message_type == "SELL" else "ℹ️"
         
         if broadcast.symbol and broadcast.price:

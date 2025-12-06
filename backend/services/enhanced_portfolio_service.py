@@ -11,11 +11,11 @@ import pandas as pd
 from sqlalchemy import and_, desc
 from sqlalchemy.orm import Session
 
-from backend.models.database import get_db_context
-from backend.models.orm_models import (
+from models.database import get_db_context
+from models.orm_models import (
     Portfolio, Position, Trade, EquityHistory, Signal
 )
-from backend.models.schemas import (
+from models.schemas import (
     PortfolioState, Position as PositionSchema, EquityPoint, Trade as TradeSchema
 )
 
