@@ -1,16 +1,21 @@
 """
-EVDS Client - TCMB EVDS API ile veri çekme işlemlerini yönetir
+EVDS Client - TCMB EVDS API ile veri çekme işlemlerini yönetir (INCREMENTAL MOD)
+
+INCREMENTAL LOGIC:
+- Mevcut CSV dosyasındaki son tarihe bakar
+- Sadece eksik günleri EVDS'ten çeker
+- Eski veriyle birleştirir
 """
 
 import pandas as pd
 from typing import List, Dict, Optional, Union
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 import logging
 
 try:
     from evds import evdsAPI
 except ImportError:
-    # evds kurulu değilse, kullanıcıya bilgi ver
     evdsAPI = None
 
 from quanttrade.config import (
@@ -194,56 +199,89 @@ class EVDSClient:
     
     def fetch_and_save_default_macro(
         self,
-        output_filename: str = "evds_macro_daily.csv"
+        output_filename: str = "evds_macro_daily.csv",
+        incremental: bool = True
     ) -> str:
         """
-        settings.toml'da tanımlanan varsayılan makro serileri çeker ve kaydeder.
+        settings.toml'da tanımlanan varsayılan makro serileri INCREMENTAL olarak çeker ve kaydeder.
         
-        Bu metod:
-        1. settings.toml'dan EVDS ayarlarını okur
-        2. Tanımlanan tüm serileri GÜNLÜK frekans ile çeker
-        3. Aylık/yıllık serileri günlük aralıklara forward-fill ile doldurur
-        4. Tek bir DataFrame'de birleştirir
-        5. data/raw/macro/ dizinine CSV olarak kaydeder
+        INCREMENTAL LOGIC:
+        1. Mevcut dosyayı kontrol et
+        2. Son tarihten itibaren sadece eksik günleri çek
+        3. Eski veriyle birleştir
         
         Args:
             output_filename (str): Çıktı dosya adı. Varsayılan: "evds_macro_daily.csv"
+            incremental (bool): True ise incremental, False ise full çekim
         
         Returns:
             str: Kaydedilen dosyanın tam yolu
-            
-        Raises:
-            ValueError: EVDS ayarları eksikse
         """
-        logger.info("Varsayılan makro veriler çekiliyor...")
+        logger.info("="*60)
+        logger.info("EVDS Makro Veri Çekme (INCREMENTAL MOD)")
+        logger.info("="*60)
         
         # EVDS ayarlarını oku
         evds_settings = get_evds_settings()
         
         if not evds_settings:
-            raise ValueError(
-                "EVDS ayarları config/settings.toml dosyasında bulunamadı"
-            )
+            raise ValueError("EVDS ayarları config/settings.toml dosyasında bulunamadı")
         
-        start_date = evds_settings.get("start_date")
-        end_date = evds_settings.get("end_date")
+        config_start_date = evds_settings.get("start_date")
+        config_end_date = evds_settings.get("end_date")
         series_dict = evds_settings.get("series", {})
         
-        if not start_date or not end_date:
-            raise ValueError(
-                "start_date ve end_date config/settings.toml dosyasında tanımlanmalı"
-            )
+        if not config_start_date or not config_end_date:
+            raise ValueError("start_date ve end_date config/settings.toml dosyasında tanımlanmalı")
         
         if not series_dict:
-            raise ValueError(
-                "Çekilecek seri bulunamadı. config/settings.toml içinde [evds.series] "
-                "bölümünü kontrol edin"
-            )
+            raise ValueError("Çekilecek seri bulunamadı")
+        
+        # Dosya yolunu oluştur
+        output_path = MACRO_DATA_DIR / output_filename
+        
+        # INCREMENTAL: Mevcut dosyayı kontrol et
+        old_df = pd.DataFrame()
+        actual_start_date = config_start_date
+        
+        if incremental and output_path.exists():
+            try:
+                old_df = pd.read_csv(output_path, index_col=0, parse_dates=True)
+                old_df.index.name = 'date'
+                
+                if not old_df.empty:
+                    last_date = old_df.index.max()
+                    
+                    if isinstance(last_date, pd.Timestamp):
+                        last_date = last_date.to_pydatetime()
+                    
+                    # Config end_date'i parse et
+                    try:
+                        end_dt = datetime.strptime(config_end_date, "%Y-%m-%d")
+                    except ValueError:
+                        end_dt = datetime.now()
+                    
+                    # Veri zaten güncel mi?
+                    if last_date.date() >= end_dt.date():
+                        logger.info(f"✓ Makro veri zaten güncel! Son tarih: {last_date.strftime('%Y-%m-%d')}")
+                        return str(output_path)
+                    
+                    # Incremental başlangıç tarihi
+                    new_start = last_date + timedelta(days=1)
+                    actual_start_date = new_start.strftime("%Y-%m-%d")
+                    
+                    logger.info(f"Mevcut veri: {old_df.index.min().strftime('%Y-%m-%d')} - {last_date.strftime('%Y-%m-%d')}")
+                    logger.info(f"Incremental çekim: {actual_start_date} -> {config_end_date}")
+                    
+            except Exception as e:
+                logger.warning(f"Mevcut dosya okunamadı: {e}, full çekim yapılacak")
+                old_df = pd.DataFrame()
+                actual_start_date = config_start_date
         
         # Seri kodlarını ve isimlerini ayır
-        series_mapping = {}  # friendly_name -> evds_code
+        series_mapping = {}
         for friendly_name, evds_code in series_dict.items():
-            if evds_code:  # Boş olmayan kodları al
+            if evds_code:
                 series_mapping[friendly_name] = evds_code
         
         if not series_mapping:
@@ -251,31 +289,31 @@ class EVDSClient:
             return ""
         
         logger.info(f"Toplam {len(series_mapping)} seri çekilecek")
+        logger.info(f"Tarih aralığı: {actual_start_date} -> {config_end_date}")
         
-        # Günlük tarih aralığı oluştur (business days - işgünleri)
-        start_dt = pd.to_datetime(start_date)
-        end_dt = pd.to_datetime(end_date)
+        # Günlük tarih aralığı oluştur
+        start_dt = pd.to_datetime(actual_start_date)
+        end_dt = pd.to_datetime(config_end_date)
+        
+        # Eğer çekilecek tarih aralığı yoksa
+        if start_dt > end_dt:
+            logger.info("Çekilecek yeni veri yok, mevcut veri güncel")
+            return str(output_path)
+        
         daily_index = pd.date_range(start=start_dt, end=end_dt, freq='D')
         
-        # Boş DataFrame oluştur
-        df_combined = pd.DataFrame(index=daily_index)
-        df_combined.index.name = 'date'
+        # Yeni veri için DataFrame
+        df_new = pd.DataFrame(index=daily_index)
+        df_new.index.name = 'date'
         
-        # Her seri için ayrı ayrı çek ve birleştir
-        # Bazı seriler sadece belirli frekanslarda mevcut
+        # Her seri için ayrı ayrı çek
         series_frequencies = {
-            # Döviz Kurları - Günlük (1)
             "TP.DK.USD.A.YTL": 1,
             "TP.DK.EUR.A.YTL": 1,
-            # Enflasyon - Aylık (5)
             "TP.FG.J0": 5,
-            # BIST100 - Günlük (1)
             "TP.MK.F.BILESIK": 1,
-            # Para Arzı - Aylık (5)
             "TP.PBD.H09": 5,
-            # TCMB Faiz - Aylık (5)
             "TP.YSSK.A1": 5,
-            # ABD Verileri - Aylık (5)
             "TP.IMFCPIND.USA": 5,
             "TP.OECDONCU.USA": 5,
         }
@@ -284,14 +322,12 @@ class EVDSClient:
             logger.info(f"Çekiliyor: {friendly_name} ({evds_code})")
             
             try:
-                # Seri için uygun frekansı belirle
-                freq = series_frequencies.get(evds_code, 1)  # Varsayılan: Günlük
+                freq = series_frequencies.get(evds_code, 1)
                 
-                # İlk önce varsayılan frekansla dene
                 df_series = self.fetch_series(
                     series_codes=evds_code,
-                    start_date=start_date,
-                    end_date=end_date,
+                    start_date=actual_start_date,
+                    end_date=config_end_date,
                     frequency=freq
                 )
                 
@@ -299,48 +335,61 @@ class EVDSClient:
                     logger.warning(f"{friendly_name} için veri çekilemedi, atlanıyor")
                     continue
                 
-                # Kolon adını düzenle
                 if len(df_series.columns) == 1:
                     df_series.columns = [friendly_name]
                 else:
-                    # Birden fazla kolon varsa ilkini al
                     df_series = df_series.iloc[:, 0:1]
                     df_series.columns = [friendly_name]
                 
-                # Ana DataFrame'e ekle (reindex ile tüm tarihlere uygula)
-                df_combined = df_combined.join(df_series, how='left')
-                
+                df_new = df_new.join(df_series, how='left')
                 logger.info(f"✓ {friendly_name}: {len(df_series)} satır eklendi")
                 
             except Exception as e:
                 logger.error(f"✗ {friendly_name} çekilirken hata: {e}")
                 continue
         
-        if df_combined.empty or df_combined.shape[1] == 0:
-            logger.warning("Hiç veri çekilemedi")
+        if df_new.empty or df_new.shape[1] == 0:
+            logger.warning("Yeni veri çekilemedi")
+            if not old_df.empty:
+                return str(output_path)
             return ""
         
-        # Aylık/yıllık verileri günlük aralıklara forward-fill ile doldur
-        logger.info("Eksik veriler forward-fill ile dolduruluyor...")
+        # Eski ve yeni veriyi birleştir
+        if not old_df.empty:
+            logger.info("Eski ve yeni veri birleştiriliyor...")
+            
+            # Kolonları eşitle
+            for col in old_df.columns:
+                if col not in df_new.columns:
+                    df_new[col] = None
+            
+            for col in df_new.columns:
+                if col not in old_df.columns:
+                    old_df[col] = None
+            
+            # Birleştir
+            df_combined = pd.concat([old_df, df_new])
+            
+            # Duplikatları temizle (index üzerinden)
+            df_combined = df_combined[~df_combined.index.duplicated(keep='last')]
+            
+            # Sırala
+            df_combined = df_combined.sort_index()
+        else:
+            df_combined = df_new
+        
+        # Forward-fill ve backward-fill
+        logger.info("Eksik veriler dolduruluyor...")
         df_combined = df_combined.ffill()
-        
-        # Başlangıçtaki NaN'ları backward-fill ile doldur
         df_combined = df_combined.bfill()
-        
-        # Hala NaN varsa 0 ile doldur
         df_combined = df_combined.fillna(0)
         
-        # Dosya yolunu oluştur
-        output_path = MACRO_DATA_DIR / output_filename
-        
-        # CSV olarak kaydet
+        # Kaydet
+        MACRO_DATA_DIR.mkdir(parents=True, exist_ok=True)
         df_combined.to_csv(output_path, encoding="utf-8")
-        logger.info(f"Veri başarıyla kaydedildi: {output_path}")
-        logger.info(f"Toplam {len(df_combined)} satır, {len(df_combined.columns)} kolon")
         
-        # İlk ve son birkaç satırı göster
-        logger.info(f"\nİlk 5 satır:\n{df_combined.head()}")
-        logger.info(f"\nSon 5 satır:\n{df_combined.tail()}")
-        logger.info(f"\nVeri özeti:\n{df_combined.describe()}")
+        logger.info(f"✓ Veri kaydedildi: {output_path}")
+        logger.info(f"  Toplam {len(df_combined)} satır, {len(df_combined.columns)} kolon")
+        logger.info(f"  Tarih aralığı: {df_combined.index.min().strftime('%Y-%m-%d')} - {df_combined.index.max().strftime('%Y-%m-%d')}")
         
         return str(output_path)

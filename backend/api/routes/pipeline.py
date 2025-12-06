@@ -2,12 +2,12 @@
 Pipeline API Routes
 """
 from fastapi import APIRouter, HTTPException
-from backend.models.schemas import (
+from models.schemas import (
     PipelineStatus, 
     PipelineRunRequest, 
     PipelineRunResponse
 )
-from backend.services.pipeline_service import pipeline_service
+from services.pipeline_service import pipeline_service
 
 router = APIRouter(prefix="/api/pipeline", tags=["pipeline"])
 

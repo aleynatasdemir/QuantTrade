@@ -1,5 +1,10 @@
 """
-Macro Downloader - EVDS makro veri indirme script'i
+Macro Downloader - EVDS makro veri indirme script'i (INCREMENTAL MOD)
+
+INCREMENTAL LOGIC:
+- Mevcut CSV dosyasındaki son tarihe bakar
+- Sadece eksik günleri EVDS'ten çeker
+- Eski veriyle birleştirir
 
 Bu script doğrudan komut satırından çalıştırılabilir:
     python macro_downloader.py
@@ -30,29 +35,28 @@ logger = logging.getLogger(__name__)
 
 def main():
     """
-    EVDS'ten varsayılan makro verileri çeker ve kaydeder.
+    EVDS'ten varsayılan makro verileri INCREMENTAL olarak çeker ve kaydeder.
     
-    Bu fonksiyon:
-    1. EVDSClient nesnesi oluşturur
-    2. settings.toml'da tanımlı serileri çeker
-    3. data/raw/macro/evds_macro_daily.csv dosyasına kaydeder
-    4. İşlem sonucunu terminale yazdırır
+    INCREMENTAL DAVRANIŞI:
+    - Mevcut dosyadaki son tarihe bakar
+    - Sadece eksik günleri çeker
+    - Güncel ise API çağrısı yapmaz
     
     Returns:
         int: Başarılı ise 0, hata varsa 1
     """
     try:
         logger.info("=" * 60)
-        logger.info("QuantTrade - EVDS Makro Veri İndirme Başlatılıyor")
+        logger.info("QuantTrade - EVDS Makro Veri İndirme (INCREMENTAL MOD)")
         logger.info("=" * 60)
         
         # EVDS client oluştur
         logger.info("EVDS Client oluşturuluyor...")
         client = EVDSClient()
         
-        # Varsayılan makro verileri çek ve kaydet
-        logger.info("Makro veriler çekiliyor...")
-        output_path = client.fetch_and_save_default_macro()
+        # Varsayılan makro verileri INCREMENTAL olarak çek ve kaydet
+        logger.info("Makro veriler çekiliyor (incremental)...")
+        output_path = client.fetch_and_save_default_macro(incremental=True)
         
         if output_path:
             logger.info("=" * 60)

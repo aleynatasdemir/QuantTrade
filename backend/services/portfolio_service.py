@@ -5,8 +5,8 @@ import json
 import pandas as pd
 from pathlib import Path
 from typing import List, Dict, Any
-from backend.config import settings
-from backend.models.schemas import PortfolioState, EquityPoint, Trade
+from config import settings
+from models.schemas import PortfolioState, EquityPoint, Trade
 
 
 class PortfolioService:

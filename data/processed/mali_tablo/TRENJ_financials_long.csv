@@ -3231,3 +3231,150 @@ TRENJ,2025/6,4CBI,Nakit ve Benzerlerindeki Değişim,Change in Cash & Cash Equiv
 TRENJ,2025/6,4CBJ,Diğer Nakit ve Nakit Benzerlerindeki Artış,Other Cash & Cash Equivalents Change,0.0
 TRENJ,2025/6,4CBK,Dönem Başı Nakit Değerler,Cash at the beginning of the Quarter,31548734.0
 TRENJ,2025/6,4CBL,Dönem Sonu Nakit,Cash at the End of the Quarter,133887717.0
+TRENJ,2025/9,1A,Dönen Varlıklar,CURRENT ASSETS,511981838.0
+TRENJ,2025/9,1AA,Nakit ve Nakit Benzerleri,Cash and Cash Equivalents,189296371.0
+TRENJ,2025/9,1AB,Finansal Yatırımlar,Short-Term Financial Investments,240762332.0
+TRENJ,2025/9,1AC,Ticari Alacaklar,Short-Term Trade Receivables,1697554.0
+TRENJ,2025/9,1AD,Finans Sektörü Faaliyetlerinden Alacaklar,Short-Term Receivables from Financial Operations,0.0
+TRENJ,2025/9,1AE,Diğer Alacaklar,Short-Term Other Receivables,700310.0
+TRENJ,2025/9,1AEA,Müşteri Sözleşmelerinden Doğan Varlıklar,nan,0.0
+TRENJ,2025/9,1AF,Stoklar,Inventories,41303750.0
+TRENJ,2025/9,1AG,Canlı Varlıklar,Short-Term Live Assets,0.0
+TRENJ,2025/9,1AH,Diğer Dönen Varlıklar,Other Current Assets,10651009.0
+TRENJ,2025/9,1AI,(Ara Toplam),(Subtotal),484411326.0
+TRENJ,2025/9,1AJ,Satış Amacıyla Elde Tutulan Duran Varlıklar,Assets to be Sold,27570512.0
+TRENJ,2025/9,1AK,Duran Varlıklar,LONG TERM ASSETS,683986018.0
+TRENJ,2025/9,1B,Ticari Alacaklar,Trade Receivables,0.0
+TRENJ,2025/9,1BA,Finans Sektörü Faaliyetlerinden Alacaklar,Long-Term Receivables from Financial Operations,0.0
+TRENJ,2025/9,1BB,Diğer Alacaklar,Other Receivables,1579425.0
+TRENJ,2025/9,1BBA,Müşteri Sözleşmelerinden Doğan Varlıklar,nan,0.0
+TRENJ,2025/9,1BC,Finansal Yatırımlar,Financial Investments,80160359.0
+TRENJ,2025/9,1BD,Özkaynak Yöntemiyle Değerlenen Yatırımlar,Investments with Equity Method,0.0
+TRENJ,2025/9,1BE,Canlı Varlıklar,Long-Term Live Assets,0.0
+TRENJ,2025/9,1BF,Yatırım Amaçlı Gayrimenkuller,Real Estate Investments,50043481.0
+TRENJ,2025/9,1BFA,Stoklar,Stoklar,0.0
+TRENJ,2025/9,1BFAA,Kullanım Hakkı Varlıkları,nan,49060.0
+TRENJ,2025/9,1BG,Maddi Duran Varlıklar,Tangible Fixed Assets,437930431.0
+TRENJ,2025/9,1BGA,Şerefiye,Goodwill,0.0
+TRENJ,2025/9,1BH,Maddi Olmayan Duran Varlıklar,Intangible Fixed Assets,687275.0
+TRENJ,2025/9,1BJ,Ertelenmiş Vergi Varlığı,Long Term Deffered Tax Assets,64985330.0
+TRENJ,2025/9,1BK,Diğer Duran Varlıklar,Other Long-Term Assets,48550657.0
+TRENJ,2025/9,1BL,TOPLAM VARLIKLAR,TOTAL ASSETS,1195967856.0
+TRENJ,2025/9,1BM,KAYNAKLAR,LIABILITIES,0.0
+TRENJ,2025/9,2A,Kısa Vadeli Yükümlülükler,SHORT TERM LIABILITIES,85410879.0
+TRENJ,2025/9,2AA,Finansal Borçlar,Short-Term Financial Loans,1563191.0
+TRENJ,2025/9,2AAG,Diğer Finansal Yükümlülükler,Other Short-Term Financial Liabilities,0.0
+TRENJ,2025/9,2AAGAA,Ticari Borçlar,Short-Term Trade Payables,17500842.0
+TRENJ,2025/9,2AAGAB,Diğer Borçlar,Other Short-Term Loans,7164395.0
+TRENJ,2025/9,2AAGAC,Müşteri Söz. Doğan Yük.,nan,0.0
+TRENJ,2025/9,2AAGB,Finans Sektörü Faaliyetlerinden Borçlar,Short-Term Loans from Financial Operations,0.0
+TRENJ,2025/9,2AAGC,Devlet Teşvik ve Yardımları,Short-Term Government Promotions and Aids,0.0
+TRENJ,2025/9,2AAGCA,Ertelenmiş Gelirler (Müşteri Söz. Doğan Yük. Dış.Kal.),nan,198597.0
+TRENJ,2025/9,2AAGD,Dönem Karı Vergi Yükümlülüğü,Taxation Liabilities on Income (-),489159.0
+TRENJ,2025/9,2AAGE,Borç Karşılıkları,Short-Term Provisions,48608808.0
+TRENJ,2025/9,2AAGF,Diğer Kısa Vadeli Yükümlülükler,Other Short-Term Liabilities,9885887.0
+TRENJ,2025/9,2AAGG,(Ara Toplam),(Subtotal),85410879.0
+TRENJ,2025/9,2AAGH,Satış Amaçlı Elde Tutulan Duran Varlıklara İlişkin Yükümlülükler,Liabilities on Assets to be Sold,0.0
+TRENJ,2025/9,2B,Uzun Vadeli Yükümlülükler,LONG TERM LIABILITIES,35331060.0
+TRENJ,2025/9,2BA,Finansal Borçlar,Long-Term Financial Loans,0.0
+TRENJ,2025/9,2BB,Diğer Finansal Yükümlülükler,Other Short-Term Financial Liabilities,0.0
+TRENJ,2025/9,2BBA,Ticari Borçlar,Long-Term Trade Payables,0.0
+TRENJ,2025/9,2BBB,Diğer Borçlar,Other Long-Term Loans,0.0
+TRENJ,2025/9,2BBBA,Müşteri Söz.Doğan Yük.,nan,0.0
+TRENJ,2025/9,2BC,Finans Sektörü Faaliyetlerinden Borçlar,Long-Term Loans from Financial Operations,0.0
+TRENJ,2025/9,2BD,Devlet Teşvik ve Yardımları,Long-Term Government Promotions and Aids,0.0
+TRENJ,2025/9,2BDA,Ertelenmiş Gelirler (Müşteri Söz.Doğan Yük. Dış.Kal.),nan,337.0
+TRENJ,2025/9,2BE,Uzun vadeli karşılıklar,Long-Term Provisions,35330723.0
+TRENJ,2025/9,2BF,Çalışanlara Sağlanan Faydalara İliş.Karş.,Provisions for Retirment Pay,0.0
+TRENJ,2025/9,2BG,Ertelenmiş Vergi Yükümlülüğü,Deferred Tax Liabilities,0.0
+TRENJ,2025/9,2BH,Diğer Uzun Vadeli Yükümlülükler,Other Long-Term Liabilities,0.0
+TRENJ,2025/9,2N,Özkaynaklar,SHAREHOLDERS EQUITY,1075225917.0
+TRENJ,2025/9,2O,Ana Ortaklığa Ait Özkaynaklar,Parent Shareholders Capital,293924885.0
+TRENJ,2025/9,2OA,Ödenmiş Sermaye,Share Capital,6247619.0
+TRENJ,2025/9,2OC,Karşılıklı İştirak Sermayesi Düzeltmesi (-),Adjustments to Share Capital,-3901389.0
+TRENJ,2025/9,2OCA,Hisse Senedi İhraç Primleri,Premium in Excess of Par,2852464.0
+TRENJ,2025/9,2OCB,Değer Artış Fonları,Market Value Surpluses,0.0
+TRENJ,2025/9,2OCC,Yabancı Para Çevrim Farkları,FX Translation Differences,0.0
+TRENJ,2025/9,2OCD,Kardan Ayrılan Kısıtlanmış Yedekler,Income Reserves,63630548.0
+TRENJ,2025/9,2OCE,Geçmiş Yıllar Kar/Zararları,Retained Earnings /(Acc. Losses),83243117.0
+TRENJ,2025/9,2OCF,Dönem Net Kar/Zararı,Current Year Income /(Losses),25004401.0
+TRENJ,2025/9,2OD,Diğer Özsermaye Kalemleri,Other Sholders Equity Items,116848125.0
+TRENJ,2025/9,2ODA,Azınlık Payları,Minority Interests,781301032.0
+TRENJ,2025/9,2ODB,TOPLAM KAYNAKLAR,TOTAL LIABILITIES AND S.HOLDERS EQUITY,1195967856.0
+TRENJ,2025/9,3B,Sürdürülen Faaliyetler,Continuing Operations,0.0
+TRENJ,2025/9,3C,Satış Gelirleri,Net Sales,362957264.0
+TRENJ,2025/9,3CA,Satışların Maliyeti (-),Cost Of Sales,-216768643.0
+TRENJ,2025/9,3CAA,Ticari Faaliyetlerden Diğer Kar (Zarar),Other Profit (Loss) from Trade Operations,0.0
+TRENJ,2025/9,3CAB,Ticari Faaliyetlerden Brüt Kar (Zarar),Gross Profit (Loss) from Trade Operations,146188621.0
+TRENJ,2025/9,3CAC,"Faiz, Ücret, Prim, Komisyon ve Diğer Gelirler","Proceeds from Interest, Fee, Premium, Commission and Other",0.0
+TRENJ,2025/9,3CAD,"Faiz, Ücret, Prim, Komisyon ve Diğer Giderler (-)","Expenses from Interest, Fee, Premium, Commission and Other",0.0
+TRENJ,2025/9,3CAE,Finans Sektörü Faaliyetlerinden Diğer Kar (Zarar),Other Profit (Loss) from Financial Operations,0.0
+TRENJ,2025/9,3CAF,Finans Sektörü Faaliyetlerinden Brüt Kar (Zarar),Gross Profit (Loss) from Financial Operations,0.0
+TRENJ,2025/9,3CB,Diğer Gelir ve Giderler,Other Income (Expenses),0.0
+TRENJ,2025/9,3D,BRÜT KAR (ZARAR),GROSS PROFIT (LOSS),146188621.0
+TRENJ,2025/9,3DA,"Pazarlama, Satış ve Dağıtım Giderleri (-)",Marketing Selling & Distrib. Expenses (-),-5998419.0
+TRENJ,2025/9,3DB,Genel Yönetim Giderleri (-),General Administrative Expenses (-),-33142792.0
+TRENJ,2025/9,3DC,Araştırma ve Geliştirme Giderleri (-),Research & Development Expenses (-),-28812973.0
+TRENJ,2025/9,3DD,Diğer Faaliyet Gelirleri,Income from Other Operations,10144581.0
+TRENJ,2025/9,3DE,Diğer Faaliyet Giderleri (-),Expenses from Other Operations (-),-11424540.0
+TRENJ,2025/9,3DEA,Faaliyet Karı Öncesi Diğer Gelir ve Giderler,Other Income (Expenses) Before Operating Profits,0.0
+TRENJ,2025/9,3DF,FAALİYET KARI (ZARARI),OPERATING PROFITS,76954478.0
+TRENJ,2025/9,3H,Net Faaliyet Kar/Zararı,Net Operating Profits,78234437.0
+TRENJ,2025/9,3HA,Yatırım Faaliyetlerinden Gelirler,nan,115944799.0
+TRENJ,2025/9,3HAA,Yatırım Faaliyetlerinden Giderler (-),nan,-267747.0
+TRENJ,2025/9,3HAB,Diğer Gelir ve Giderler,nan,0.0
+TRENJ,2025/9,3HAC,Özkaynak Yöntemiyle Değerlenen Yatırımların Kar/Zararlarındaki Paylar,Profit (Loss) from Subsidiaries,0.0
+TRENJ,2025/9,3HACA,Finansman Gideri Öncesi Faaliyet Karı/Zararı,nan,192631530.0
+TRENJ,2025/9,3HB,(Esas Faaliyet Dışı) Finansal Gelirler,Financial Income (from Other Operations),0.0
+TRENJ,2025/9,3HC,(Esas Faaliyet Dışı) Finansal Giderler (-),Financial Expenses (from Other Operations) (-),-74376340.0
+TRENJ,2025/9,3HCA,Vergi Öncesi Diğer Gelir ve Giderler,Other Income (Expenses) Before Tax,115677051.0
+TRENJ,2025/9,3I,SÜRDÜRÜLEN FAALİYETLER VERGİ ÖNCESİ KARI (ZARARI),PROFIT BEFORE TAX FROM CONTINUING OPERATIONS,118255190.0
+TRENJ,2025/9,3IA,Sürdürülen Faaliyetler Vergi Geliri (Gideri),Taxation on Continuing Operations,1882280.0
+TRENJ,2025/9,3IB,Dönem Vergi Geliri (Gideri),Taxation on Income (Expenses),-2725949.0
+TRENJ,2025/9,3IC,Ertelenmiş Vergi Geliri (Gideri),Income (Expenses) of Deferred Tax,4608230.0
+TRENJ,2025/9,3ID,Diğer Vergi Geliri (Gideri),Other Taxation Income (Expenses),0.0
+TRENJ,2025/9,3J,SÜRDÜRÜLEN FAALİYETLER DÖNEM KARI/ZARARI,PROFIT FROM CONTINUING OPERATIONS,120137470.0
+TRENJ,2025/9,3K,DURDURULAN FAALİYETLER,DISCONTINUED OPERATIONS,0.0
+TRENJ,2025/9,3KA,Durdurulan Faaliyetler Vergi Sonrası Dönem Karı (Zararı),Profit After Taxes from Discontinued Operations,0.0
+TRENJ,2025/9,3L,DÖNEM KARI (ZARARI),NET PROFIT AFTER TAXES,120137470.0
+TRENJ,2025/9,3LA,Dönem Kar/Zararının Dağılımı,Distrubition of Profit (Loss),0.0
+TRENJ,2025/9,3LB,Azınlık Payları,Minority Interests,93227561.0
+TRENJ,2025/9,3Z,Ana Ortaklık Payları,Parent Shares,26909909.0
+TRENJ,2025/9,3ZD,Hisse Başına Kazanç,Earnings per Share,0.0
+TRENJ,2025/9,3ZE,Seyreltilmiş Hisse Başına Kazanç,Diluted Earnings per Share,0.0
+TRENJ,2025/9,3ZF,Sürdürülen Faaliyetlerden Hisse Başına Kazanç,Earnings per Share from Continuing Operations,0.0
+TRENJ,2025/9,3ZG,Sürdürülen Faaliyetlerden Seyreltilmiş Hisse Başına Kazanç,Earnings per Share from Discontinued Operations,0.0
+TRENJ,2025/9,4B,Amortisman Giderleri,Depreciation & Amortization,21329714.0
+TRENJ,2025/9,4BA,Kıdem Tazminatı,Severance Payments,547995.0
+TRENJ,2025/9,4BB,Finansman Giderleri,Financial Expenses,-74376340.0
+TRENJ,2025/9,4BC,Yurtiçi Satışlar,Domestic Sales,349100482.0
+TRENJ,2025/9,4BD,Yurtdışı Satışlar,Export Sales,13914991.0
+TRENJ,2025/9,4BE,Net Yabancı Para Pozisyonu,Net Fx Position,-13783278.0
+TRENJ,2025/9,4BEA,Parasal net yabancı para varlık/(yükümlülük) pozisyonu,Parasal net yabancı para varlık/(yükümlülük) pozisyonu,-13783278.0
+TRENJ,2025/9,4BEB,Net YPP (Hedge Dahil),Net YPP (Hedge Dahil),-13783278.0
+TRENJ,2025/9,4C,İşletme Faaliyetlerinden Kaynaklanan Net Nakit,Net Cash from Operations,240857746.0
+TRENJ,2025/9,4CA,Düzeltme Öncesi Kar,Earnings Before Adjustments,120137470.0
+TRENJ,2025/9,4CAA,Düzeltmeler:,Adjustments:,40649344.0
+TRENJ,2025/9,4CAB,Amortisman & İtfa Payları,Depreciation & Amortisation,21329714.0
+TRENJ,2025/9,4CAC,Karşılıklardaki Değişim,Change in Provisions,41825620.0
+TRENJ,2025/9,4CAD,Diğer Gelir/ Gider,Other Income / Expense,-113048081.0
+TRENJ,2025/9,4CAE,İşletme Sermayesinde Değişikler Öncesi Faaliyet Karı (+),Operating Profit Before Changes in Working Capital (+),160786814.0
+TRENJ,2025/9,4CAF,İşletme Sermayesindeki Değişiklikler,Change in Working Capital,111670651.0
+TRENJ,2025/9,4CAG,Esas Faaliyet ile İlgili Oluşan Nakit (+),Cash from Core Operations (+),272457465.0
+TRENJ,2025/9,4CAH,Diğer İşletme Faaliyetlerinden Nakit,Cash from Other Operations,-31599719.0
+TRENJ,2025/9,4CAI,Sabit Sermaye Yatırımları,Capital Expenditures (CapEx),-125962895.0
+TRENJ,2025/9,4CAJ,Diğer Yatırım Faaliyetlerinden Nakit,Cash from Other Investment Operations,81038006.0
+TRENJ,2025/9,4CAK,Yatırım Faaliyetlerinden Kaynaklanan Nakit,Cash from Investment Operations,-44924889.0
+TRENJ,2025/9,4CB,Serbest Nakit Akım,Free Cash Flow,195932858.0
+TRENJ,2025/9,4CBA,Finansal Borçlardaki Değişim,Change in Financial Debt,1164681.0
+TRENJ,2025/9,4CBB,Temettü Ödemeleri,Dividends Paid,0.0
+TRENJ,2025/9,4CBC,Sermaye Artırımı,Rights Issue,0.0
+TRENJ,2025/9,4CBD,Diğer Finansman Faaliyetlerinden Nakit,Cash from Other Financial Operations,-98351.0
+TRENJ,2025/9,4CBE,Finansman Faaliyetlerden Kaynaklanan Nakit,Cash from Financial Operations,1066330.0
+TRENJ,2025/9,4CBF,Yab. Para Çev. Fark. Etk. Önc.Nak.Ve Nak. Benz. Net Artış/Azalış,Cash Net Inc. / Dec. before For.Cur. Trans. Dif.,168254388.0
+TRENJ,2025/9,4CBG,Yab.ı Para Çevrim Fark. Nakit Ve Nakit Benz. Üzerindeki Etkisi,Foreign Curr. Trans.Diff.Cash and Cash Benz. Imp.,0.0
+TRENJ,2025/9,4CBH,Diğer Nakit Girişi/Çıkışı,Other Cash Inflow/Outflow,0.0
+TRENJ,2025/9,4CBI,Nakit ve Benzerlerindeki Değişim,Change in Cash & Cash Equivalents,168254388.0
+TRENJ,2025/9,4CBJ,Diğer Nakit ve Nakit Benzerlerindeki Artış,Other Cash & Cash Equivalents Change,0.0
+TRENJ,2025/9,4CBK,Dönem Başı Nakit Değerler,Cash at the beginning of the Quarter,32903773.0
+TRENJ,2025/9,4CBL,Dönem Sonu Nakit,Cash at the End of the Quarter,201158161.0

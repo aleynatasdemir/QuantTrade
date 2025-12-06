@@ -1,8 +1,13 @@
 """
-İş Yatırım OHLCV Downloader - Günlük OHLCV verilerini indiren script
+İş Yatırım OHLCV Downloader - Günlük OHLCV verilerini INCREMENTAL olarak indiren script
 
 Bu script İş Yatırım sitesinden BIST hisseleri için OHLCV verilerini çeker
-ve parquet dosyalarına kaydeder.
+ve CSV dosyalarına kaydeder.
+
+INCREMENTAL LOGIC:
+- Her sembol için mevcut dosyaya bakar
+- Sadece eksik günleri çeker
+- API yükünü minimize eder
 
 Kullanım:
     python -m src.quanttrade.data_sources.isyatirim_ohlcv_downloader
@@ -14,6 +19,7 @@ veya:
 import sys
 import logging
 from pathlib import Path
+from datetime import datetime
 
 # Proje kök dizinini Python path'e ekle
 project_root = Path(__file__).parent.parent.parent.parent
@@ -33,8 +39,13 @@ logger = logging.getLogger(__name__)
 
 def main() -> int:
     """
-    İş Yatırım'dan OHLCV verilerini çeker ve CSV dosyalarına kaydeder.
+    İş Yatırım'dan OHLCV verilerini INCREMENTAL olarak çeker ve CSV dosyalarına kaydeder.
     Sembol listesi ve tarih aralığı config/settings.toml'dan okunur.
+    
+    INCREMENTAL DAVRANIŞI:
+    - Mevcut dosyası olan semboller için son tarihten itibaren veri çeker
+    - Yeni semboller için full aralık çeker
+    - Güncel semboller atlanır
     
     Returns:
         int: Başarılı ise 0, hata varsa 1
@@ -58,17 +69,20 @@ def main() -> int:
         output_dir = ROOT_DIR / "data" / "raw" / "ohlcv"
         
         logger.info("="*80)
-        logger.info("İŞ YATIRIM OHLCV VERİ ÇEKME")
+        logger.info("İŞ YATIRIM OHLCV VERİ ÇEKME (INCREMENTAL MOD)")
         logger.info("="*80)
         logger.info(f"Toplam sembol sayısı: {len(symbols)}")
-        logger.info(f"Tarih aralığı: {start_date} - {end_date}")
+        logger.info(f"Config tarih aralığı: {start_date} - {end_date}")
         logger.info(f"Çıktı dizini: {output_dir}")
         logger.info(f"İlk 10 sembol: {', '.join(symbols[:10])}")
         if len(symbols) > 10:
             logger.info(f"... ve {len(symbols) - 10} sembol daha")
+        logger.info("")
+        logger.info("NOT: Her sembol için mevcut veri kontrol edilecek.")
+        logger.info("     Sadece eksik günler çekilecek, güncel semboller atlanacak.")
         logger.info("="*80)
         
-        # İş Yatırım'dan veri çek
+        # İş Yatırım'dan veri çek (INCREMENTAL)
         fetch_ohlcv_from_isyatirim(
             symbols=symbols,
             start_date=start_date,

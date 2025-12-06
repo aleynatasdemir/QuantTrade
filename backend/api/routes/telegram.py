@@ -3,7 +3,7 @@ Telegram API Routes
 """
 from fastapi import APIRouter, HTTPException
 from typing import List
-from backend.models.schemas import (
+from models.schemas import (
     TelegramConfig,
     TelegramConfigUpdate,
     TelegramSubscriber,
@@ -11,7 +11,7 @@ from backend.models.schemas import (
     TelegramSubscriberUpdate,
     BroadcastMessage
 )
-from backend.services.telegram_service import telegram_service
+from services.telegram_service import telegram_service
 
 router = APIRouter(prefix="/api/telegram", tags=["telegram"])
 

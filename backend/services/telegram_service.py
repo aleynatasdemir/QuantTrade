@@ -7,8 +7,8 @@ from typing import List, Optional, Dict
 from datetime import datetime
 from telegram import Bot
 from telegram.error import TelegramError
-from backend.config import settings
-from backend.models.schemas import (
+from config import settings
+from models.schemas import (
     TelegramConfig, 
     TelegramSubscriber, 
     TelegramSubscriberCreate,

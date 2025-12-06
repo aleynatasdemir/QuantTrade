@@ -3,8 +3,8 @@ Portfolio API Routes
 """
 from fastapi import APIRouter, HTTPException
 from typing import List
-from backend.models.schemas import PortfolioState, EquityPoint, Trade
-from backend.services.portfolio_service import portfolio_service
+from models.schemas import PortfolioState, EquityPoint, Trade
+from services.portfolio_service import portfolio_service
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 

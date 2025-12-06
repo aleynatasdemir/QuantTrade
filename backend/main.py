@@ -3,8 +3,8 @@ FastAPI Main Application
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.config import settings
-from backend.api.routes import portfolio, pipeline, telegram
+from config import settings
+from api.routes import portfolio, pipeline, telegram
 
 # Create FastAPI app
 app = FastAPI(

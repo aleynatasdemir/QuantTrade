@@ -1,6 +1,12 @@
 """
-BIST Hisse Veri Toplama Pipeline - Tüm Dönemler
+BIST Hisse Veri Toplama Pipeline - Tüm Dönemler (INCREMENTAL MOD)
 isyatirimhisse kütüphanesi kullanarak BIST'teki her hisse için TÜM dönemlerin finansal verilerini ayrı CSV'lerde toplar.
+
+INCREMENTAL LOGIC:
+- Her sembol için mevcut CSV dosyasına bakar
+- Son dönem tarihini tespit eder
+- Sadece yeni dönemlerin verilerini çeker
+- Eski veriyle birleştirir ve duplikatları temizler
 
 Gerekli kurulum:
 pip install isyatirimhisse pandas numpy
@@ -64,8 +70,9 @@ DEFAULT_BIST_SYMBOLS = [
 
 class BISTDataCollectorAllPeriods:
     """
-    BIST hisse senetleri için kapsamlı veri toplama sistemi.
+    BIST hisse senetleri için kapsamlı veri toplama sistemi - INCREMENTAL MOD.
     Her hisse için TÜM dönemlerin finansal verilerini ayrı CSV'lerde kaydeder.
+    Mevcut veriler varsa sadece yeni dönemleri çeker.
     """
     
     def __init__(self, symbols: Optional[List[str]] = None):
@@ -76,7 +83,7 @@ class BISTDataCollectorAllPeriods:
             symbols: Hisse sembolleri listesi (opsiyonel, yoksa config'den okunur)
         """
         logger.info("="*80)
-        logger.info("BIST Veri Toplama Pipeline Başlatılıyor (TÜM DÖNEMLER)")
+        logger.info("BIST Veri Toplama Pipeline Başlatılıyor (INCREMENTAL MOD)")
         logger.info("="*80)
         
         # Sembolleri belirle: parametre > config > varsayılan
@@ -112,20 +119,127 @@ class BISTDataCollectorAllPeriods:
         logger.info(f"İlk 10 sembol: {', '.join(self.symbols[:10])}")
         if len(self.symbols) > 10:
             logger.info(f"... ve {len(self.symbols) - 10} sembol daha")
+        
+        # İstatistikler
+        self.skip_count = 0
+        self.update_count = 0
+        self.fail_count = 0
     
-    def get_financial_data_all_periods(self, symbol: str) -> pd.DataFrame:
+    def get_existing_periods(self, file_path: Path) -> tuple:
         """
-        Bir hisse için TÜM dönemlerin finansal verilerini getir.
+        Mevcut CSV dosyasındaki dönemleri ve son dönemi tespit eder.
+        
+        Args:
+            file_path: CSV dosya yolu
+            
+        Returns:
+            tuple: (existing_periods set, last_period str, existing_df)
+        """
+        if not file_path.exists():
+            return set(), None, None
+        
+        try:
+            df = pd.read_csv(file_path, encoding='utf-8')
+            if df.empty or 'period' not in df.columns:
+                return set(), None, None
+            
+            existing_periods = set(df['period'].unique())
+            
+            # Son dönemi bul (örn: 2024/12)
+            sorted_periods = sorted(
+                [p for p in existing_periods if isinstance(p, str) and '/' in p],
+                key=lambda x: tuple(map(int, x.split('/')))
+            )
+            
+            last_period = sorted_periods[-1] if sorted_periods else None
+            
+            return existing_periods, last_period, df
+            
+        except Exception as e:
+            logger.warning(f"Dosya okuma hatası: {e}")
+            return set(), None, None
+    
+    def period_to_year(self, period_str: str) -> Optional[int]:
+        """Dönem string'inden yıl çıkar (örn: '2024/12' -> 2024)"""
+        try:
+            if '/' in str(period_str):
+                return int(str(period_str).split('/')[0])
+        except:
+            pass
+        return None
+    
+    def period_to_date(self, period_str: str) -> Optional[datetime]:
+        """Dönem string'ini datetime'a çevirir (örn: '2024/12' -> 2024-12-31)"""
+        try:
+            if '/' in str(period_str):
+                year, month = period_str.split('/')
+                year = int(year)
+                month = int(month)
+                # Ayın son gününü hesapla
+                if month == 12:
+                    return datetime(year, 12, 31)
+                else:
+                    from calendar import monthrange
+                    _, last_day = monthrange(year, month)
+                    return datetime(year, month, last_day)
+        except:
+            pass
+        return None
+    
+    def get_last_business_day(self, date: datetime = None) -> datetime:
+        """En son iş gününü döndürür. Haftasonu ise Cuma'ya geri gider."""
+        if date is None:
+            date = datetime.now()
+        date = date.replace(hour=0, minute=0, second=0, microsecond=0)
+        while date.weekday() >= 5:  # 5=Cumartesi, 6=Pazar
+            date -= timedelta(days=1)
+        return date
+    
+    def is_up_to_date(self, last_period: str, end_date: str) -> bool:
+        """
+        Verinin güncel olup olmadığını kontrol eder.
+        Tam tarih karşılaştırması yapar ve haftasonlarını dikkate alır.
+        
+        Args:
+            last_period: Son dönem (örn: '2024/12')
+            end_date: Config'teki bitiş tarihi (YYYY-MM-DD)
+            
+        Returns:
+            bool: Veri güncel mi?
+        """
+        if not last_period or not end_date:
+            return False
+        
+        try:
+            # Son dönemi datetime'a çevir
+            last_date = self.period_to_date(last_period)
+            if last_date is None:
+                return False
+            
+            # Hedef tarihi parse et ve son iş gününe ayarla
+            target_date = datetime.strptime(end_date, "%Y-%m-%d")
+            target_date = self.get_last_business_day(target_date)
+            
+            # Tam tarih karşılaştırması
+            return last_date >= target_date
+        except:
+            return False
+    
+    def get_financial_data_all_periods(self, symbol: str, start_year: int = None) -> pd.DataFrame:
+        """
+        Bir hisse için TÜM dönemlerin finansal verilerini getir (INCREMENTAL).
         
         Args:
             symbol: Hisse sembolü
+            start_year: Başlangıç yılı (incremental mod için)
             
         Returns:
             DataFrame: Tüm dönemler için finansal veriler (her satır bir dönem)
         """
         try:
             current_year = datetime.now().year
-            start_year = 2015  # Daha fazla geçmiş veri için
+            if start_year is None:
+                start_year = 2015  # Varsayılan başlangıç yılı
             
             # Önce financial_group='1' dene (sanayi şirketleri)
             financials = None
@@ -477,77 +591,147 @@ class BISTDataCollectorAllPeriods:
         except (ValueError, TypeError):
             return None
     
-    def collect_stock_data(self, symbol: str, output_dir: str) -> int:
+    def merge_financial_data(self, old_df: pd.DataFrame, new_df: pd.DataFrame) -> pd.DataFrame:
         """
-        Bir hisse için tüm dönemlerin verilerini topla ve ayrı CSV'ye kaydet.
+        Eski ve yeni finansal verileri birleştirir.
+        
+        Args:
+            old_df: Mevcut veri
+            new_df: Yeni çekilen veri
+            
+        Returns:
+            DataFrame: Birleştirilmiş veri
+        """
+        if old_df is None or old_df.empty:
+            return new_df
+        if new_df is None or new_df.empty:
+            return old_df
+        
+        # Birleştir
+        combined = pd.concat([old_df, new_df], ignore_index=True)
+        
+        # Duplikatları temizle (period sütununa göre)
+        if 'period' in combined.columns:
+            combined = combined.drop_duplicates(subset=['period'], keep='last')
+            
+            # Dönemleri sırala
+            try:
+                combined['_sort_key'] = combined['period'].apply(
+                    lambda x: tuple(map(int, str(x).split('/'))) if '/' in str(x) else (0, 0)
+                )
+                combined = combined.sort_values('_sort_key')
+                combined = combined.drop('_sort_key', axis=1)
+            except:
+                pass
+        
+        return combined.reset_index(drop=True)
+    
+    def collect_stock_data(self, symbol: str, output_dir: str) -> tuple:
+        """
+        Bir hisse için tüm dönemlerin verilerini topla ve ayrı CSV'ye kaydet (INCREMENTAL).
         
         Args:
             symbol: Hisse sembolü
             output_dir: Çıktı dizini
             
         Returns:
-            int: Kaydedilen dönem sayısı
+            tuple: (status, periods_count) - status: 'skip', 'update', 'new', 'fail'
         """
-        logger.info(f"İşleniyor: {symbol}")
+        output_file = Path(output_dir) / f"{symbol}_financials_all_periods.csv"
+        
+        # Mevcut veriyi kontrol et
+        existing_periods, last_period, old_df = self.get_existing_periods(output_file)
+        
+        # Güncellik kontrolü
+        if last_period and self.is_up_to_date(last_period, self.end_date):
+            logger.info(f"✓ {symbol}: Güncel (son dönem: {last_period})")
+            return ('skip', len(existing_periods) if existing_periods else 0)
         
         try:
-            # TÜM dönemlerin finansal verilerini al
-            financial_df = self.get_financial_data_all_periods(symbol)
+            # Incremental mod: son dönemin yılından itibaren çek
+            start_year = None
+            if last_period:
+                start_year = self.period_to_year(last_period)
+                if start_year:
+                    start_year = start_year - 1  # Güvenlik için 1 yıl geriye git
+                logger.info(f"  → Incremental mod: {start_year} yılından itibaren")
             
-            if financial_df.empty:
-                logger.warning(f"✗ {symbol}: Finansal veri bulunamadı, atlanıyor")
-                return 0
+            # Finansal verileri al
+            financial_df = self.get_financial_data_all_periods(symbol, start_year)
+            
+            if financial_df.empty and (old_df is None or old_df.empty):
+                logger.warning(f"✗ {symbol}: Finansal veri bulunamadı")
+                return ('fail', 0)
             
             # Rate limiting
             time.sleep(1)
             
-            # Fiyat verilerini al (tek seferlik - tüm dönemler için aynı)
+            # Fiyat verilerini al
             price_data = self.get_price_data(symbol)
             
-            # Fiyat verilerini her satıra ekle
-            for col, val in price_data.items():
-                financial_df[col] = val
+            # Yeni verileri birleştir
+            if not financial_df.empty:
+                for col, val in price_data.items():
+                    financial_df[col] = val
+                
+                combined = self.merge_financial_data(old_df, financial_df)
+            else:
+                combined = old_df
             
-            # CSV'ye kaydet - her hisse ayrı dosya
-            output_file = os.path.join(output_dir, f"{symbol}_financials_all_periods.csv")
-            financial_df.to_csv(output_file, index=False, encoding='utf-8')
+            # Kaydet
+            combined.to_csv(output_file, index=False, encoding='utf-8')
             
-            logger.info(f"✓ {symbol}: {len(financial_df)} dönem kaydedildi -> {output_file}")
-            
-            return len(financial_df)
+            new_periods = len(combined) - (len(old_df) if old_df is not None else 0)
+            if last_period:
+                logger.info(f"✓ {symbol}: +{new_periods} yeni dönem ({len(combined)} toplam)")
+                return ('update', len(combined))
+            else:
+                logger.info(f"✓ {symbol}: {len(combined)} dönem kaydedildi")
+                return ('new', len(combined))
             
         except Exception as e:
             logger.error(f"✗ {symbol}: Genel hata - {e}")
-            return 0
+            return ('fail', 0)
     
     def run(self):
         """
-        Tüm pipeline'ı çalıştır.
+        Tüm pipeline'ı çalıştır (INCREMENTAL MOD).
         """
         start_time = time.time()
         
         # Çıktı dizini
         output_dir = str(OUTPUT_DIR)
         
-        logger.info(f"Toplam {len(self.symbols)} hisse için veri toplanacak")
+        logger.info(f"\nToplam {len(self.symbols)} hisse için veri toplanacak")
         logger.info(f"Tarih aralığı: {self.start_date} - {self.end_date}")
         logger.info(f"Çıktı dizini: {output_dir}")
+        logger.info("\nNOT: Mevcut veriler kontrol edilecek, sadece yeni dönemler çekilecek.")
         logger.info("="*80)
         
         # İstatistikler
         total_stocks = len(self.symbols)
-        successful_stocks = 0
+        skip_count = 0
+        update_count = 0
+        new_count = 0
+        fail_count = 0
         total_periods = 0
         
         # Her hisse için veri topla
         for idx, symbol in enumerate(self.symbols, 1):
-            logger.info(f"\n[{idx}/{total_stocks}] {symbol} işleniyor...")
+            logger.info(f"\n[{idx}/{total_stocks}] {symbol}...")
             
-            periods_count = self.collect_stock_data(symbol, output_dir)
+            status, periods = self.collect_stock_data(symbol, output_dir)
             
-            if periods_count > 0:
-                successful_stocks += 1
-                total_periods += periods_count
+            if status == 'skip':
+                skip_count += 1
+            elif status == 'update':
+                update_count += 1
+            elif status == 'new':
+                new_count += 1
+            else:
+                fail_count += 1
+            
+            total_periods += periods
             
             # Her 10 hissede bir ilerleme raporu
             if idx % 10 == 0:
@@ -555,7 +739,7 @@ class BISTDataCollectorAllPeriods:
                 avg_time = elapsed / idx
                 remaining = (total_stocks - idx) * avg_time
                 logger.info(f"\n📊 İlerleme: {idx}/{total_stocks} - Kalan süre: ~{remaining/60:.1f} dakika")
-                logger.info(f"   Başarılı: {successful_stocks}, Toplam dönem: {total_periods}")
+                logger.info(f"   Atlanan: {skip_count}, Güncellenen: {update_count}, Yeni: {new_count}")
             
             # Rate limiting - API'yi yormamak için
             time.sleep(2)
@@ -564,34 +748,28 @@ class BISTDataCollectorAllPeriods:
         
         # Özet rapor
         logger.info("\n" + "="*80)
-        logger.info("İŞLEM TAMAMLANDI")
+        logger.info("İŞLEM TAMAMLANDI (INCREMENTAL MOD)")
         logger.info("="*80)
         logger.info(f"Toplam hisse: {total_stocks}")
-        logger.info(f"Başarılı hisse: {successful_stocks}")
-        logger.info(f"Başarısız hisse: {total_stocks - successful_stocks}")
+        logger.info(f"Atlanan (güncel): {skip_count}")
+        logger.info(f"Güncellenen: {update_count}")
+        logger.info(f"Yeni eklenen: {new_count}")
+        logger.info(f"Başarısız: {fail_count}")
         logger.info(f"Toplam dönem sayısı: {total_periods}")
-        logger.info(f"Ortalama dönem/hisse: {total_periods/successful_stocks if successful_stocks > 0 else 0:.1f}")
         logger.info(f"Tarih aralığı: {self.start_date} - {self.end_date}")
         logger.info(f"Toplam süre: {elapsed_time/60:.2f} dakika")
         logger.info(f"Çıktı dizini: {output_dir}")
         logger.info("="*80)
         
         # Oluşturulan dosyaları listele
-        logger.info("\n📁 Oluşturulan dosyalar:")
+        logger.info("\n📁 Dosyalar:")
         csv_files = [f for f in os.listdir(output_dir) if f.endswith('.csv')]
-        logger.info(f"Toplam {len(csv_files)} CSV dosyası oluşturuldu")
-        if len(csv_files) <= 10:
-            for f in csv_files:
-                logger.info(f"   - {f}")
-        else:
-            for f in csv_files[:5]:
-                logger.info(f"   - {f}")
-            logger.info(f"   ... ve {len(csv_files) - 5} dosya daha")
+        logger.info(f"Toplam {len(csv_files)} CSV dosyası")
 
 
 def main():
     """Ana fonksiyon"""
-    logger.info("BIST Veri Toplama Pipeline başlatılıyor (TÜM DÖNEMLER)...")
+    logger.info("BIST Veri Toplama Pipeline başlatılıyor (INCREMENTAL MOD)...")
     
     # Collector'ı başlat ve çalıştır
     collector = BISTDataCollectorAllPeriods()

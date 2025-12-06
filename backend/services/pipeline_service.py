@@ -7,8 +7,8 @@ import asyncio
 from pathlib import Path
 from typing import Optional, Dict
 from datetime import datetime
-from backend.config import settings
-from backend.models.schemas import PipelineStatus
+from config import settings
+from models.schemas import PipelineStatus
 
 
 class PipelineService:
@@ -18,6 +18,11 @@ class PipelineService:
         self.project_root = settings.get_absolute_path("")
         self.pipeline_script = self.project_root / settings.run_pipeline_script
         self.portfolio_script = self.project_root / settings.live_portfolio_script
+        
+        # Debug: print paths
+        print(f"[PipelineService] Project root: {self.project_root}")
+        print(f"[PipelineService] Pipeline script: {self.pipeline_script}")
+        print(f"[PipelineService] Pipeline exists: {self.pipeline_script.exists()}")
         
         # Track running processes
         self.current_process: Optional[asyncio.subprocess.Process] = None
@@ -29,7 +34,8 @@ class PipelineService:
         if self.current_process is not None:
             return {
                 "status": "error",
-                "message": "A pipeline is already running"
+                "message": "A pipeline is already running",
+                "job_id": ""
             }
         
         # Determine which script to run
@@ -40,13 +46,15 @@ class PipelineService:
         else:
             return {
                 "status": "error",
-                "message": f"Unknown script type: {script_type}"
+                "message": f"Unknown script type: {script_type}",
+                "job_id": ""
             }
         
         if not script_path.exists():
             return {
                 "status": "error",
-                "message": f"Script not found: {script_path}"
+                "message": f"Script not found: {script_path}",
+                "job_id": ""
             }
         
         # Update status
@@ -59,6 +67,11 @@ class PipelineService:
         
         # Start the process
         try:
+            print(f"[PipelineService] Starting subprocess...")
+            print(f"[PipelineService] Python: {sys.executable}")
+            print(f"[PipelineService] Script: {script_path}")
+            print(f"[PipelineService] CWD: {self.project_root}")
+            
             # Run in project root directory
             self.current_process = await asyncio.create_subprocess_exec(
                 sys.executable,
@@ -67,6 +80,8 @@ class PipelineService:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )
+            
+            print(f"[PipelineService] Process started with PID: {self.current_process.pid}")
             
             # Start monitoring in background
             asyncio.create_task(self._monitor_process())
@@ -77,6 +92,10 @@ class PipelineService:
                 "job_id": str(self.current_process.pid)
             }
         except Exception as e:
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"[PipelineService] ERROR: {error_trace}")
+            
             self.status = PipelineStatus(
                 status="failed",
                 error=str(e),
@@ -84,7 +103,8 @@ class PipelineService:
             )
             return {
                 "status": "error",
-                "message": f"Failed to start pipeline: {str(e)}"
+                "message": f"Failed to start pipeline: {str(e)}",
+                "job_id": ""
             }
     
     async def _monitor_process(self):

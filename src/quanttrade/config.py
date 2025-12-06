@@ -6,8 +6,30 @@ Bu modül proje genelinde kullanılan ayarları ve yolları yönetir.
 import os
 from pathlib import Path
 from typing import Dict, Any
+from datetime import datetime, timedelta
 import toml
 from dotenv import load_dotenv
+
+
+def get_last_business_day(date: datetime = None) -> datetime:
+    """
+    Verilen tarihin son iş gününü döndürür.
+    Haftasonu ise Cuma'ya geri gider.
+    
+    Args:
+        date: Kontrol edilecek tarih (None ise bugün)
+        
+    Returns:
+        datetime: Son iş günü
+    """
+    if date is None:
+        date = datetime.now()
+    
+    # Cumartesi (5) veya Pazar (6) ise Cuma'ya geri git
+    while date.weekday() >= 5:
+        date -= timedelta(days=1)
+    
+    return date
 
 
 # Proje kök dizinini belirle
@@ -72,11 +94,17 @@ def get_evds_settings() -> Dict[str, Any]:
     """
     EVDS ile ilgili ayarları getirir.
     
+    NOT: end_date otomatik olarak SON İŞ GÜNÜNE ayarlanır.
+    Haftasonu ise Cuma'ya geri gider.
+    
     Returns:
         Dict[str, Any]: EVDS ayarlarını içeren sözlük
     """
     settings = load_settings()
-    return settings.get("evds", {})
+    evds = settings.get("evds", {})
+    # end_date otomatik olarak son iş günü
+    evds["end_date"] = get_last_business_day().strftime("%Y-%m-%d")
+    return evds
 
 
 def get_stock_symbols() -> list:
@@ -93,7 +121,10 @@ def get_stock_symbols() -> list:
 
 def get_stock_date_range() -> tuple:
     """
-    Hisse verileri için tarih aralığını config'den getirir.
+    Hisse verileri için tarih aralığını döndürür.
+    
+    NOT: end_date otomatik olarak SON İŞ GÜNÜNE ayarlanır.
+    Haftasonu ise Cuma'ya geri gider.
     
     Returns:
         tuple: (start_date, end_date) tuple'ı
@@ -101,7 +132,8 @@ def get_stock_date_range() -> tuple:
     settings = load_settings()
     stocks_config = settings.get("stocks", {})
     start_date = stocks_config.get("start_date", "2020-01-01")
-    end_date = stocks_config.get("end_date", "2025-11-17")
+    # end_date otomatik olarak son iş günü
+    end_date = get_last_business_day().strftime("%Y-%m-%d")
     return start_date, end_date
 
 

@@ -2,7 +2,7 @@
 QuantTrade - Günlük Data Pipeline Orchestrator
 
 Çalıştırma (proje kökünden):
-    python src/quanttrade/pipelines/run_daily_pipeline.py
+    python run_daily_pipeline.py
 
 Sıra:
 1) data_sources  (ham veri çekme)
@@ -14,11 +14,21 @@ Her step sonrası output dosyaları otomatik kontrol edilir.
 import subprocess
 import sys
 import logging
+import os
 from pathlib import Path
 from typing import List, Dict, Callable, Optional
 
 import glob
 import pandas as pd
+
+# -------------------------------------------------------------------
+# PYTHONPATH'e src ekle (quanttrade modülü için)
+# -------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).parent.resolve()
+SRC_PATH = PROJECT_ROOT / "src"
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
+os.environ["PYTHONPATH"] = str(SRC_PATH) + os.pathsep + os.environ.get("PYTHONPATH", "")
 
 # -------------------------------------------------------------------
 # Logging
@@ -94,16 +104,16 @@ def validate_macro_raw():
 
 
 def validate_ohlcv_raw():
-    """data/raw/ohlcv/*_ohlcv_*.csv kontrolü."""
+    """data/raw/ohlcv/*_ohlcv_isyatirim.csv kontrolü."""
     step_name = "RAW_OHLCV"
     files = _validate_csv_files_exist_and_not_empty(
-        "data/raw/ohlcv/*_ohlcv_*.csv", step_name
+        "data/raw/ohlcv/*_ohlcv_isyatirim.csv", step_name
     )
     # Çok dosya olacağı için sadece ilk birkaç dosyada temel kolonlara bakalım
     sample_files = files[:5]
     for f in sample_files:
         df = pd.read_csv(f)
-        required = ["TARIH", "OPEN", "HIGH", "LOW", "CLOSE", "VOLUME"]
+        required = ["date", "open", "high", "low", "close", "volume"]
         # hamda isimler türkçe olabilir, bu sadece kabaca check; eksikse log verelim ama pipeline'ı durdurmayalım
         missing = [c for c in required if c not in df.columns]
         if missing:
@@ -410,7 +420,11 @@ def run_step(name: str, cmd: List[str], validator: StepValidator = None):
     logger.info("▶ STEP: %s", name)
     logger.info("   Komut: %s", " ".join(cmd))
 
-    result = subprocess.run(cmd, text=True)
+    # PYTHONPATH'i subprocess'e aktar
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(SRC_PATH) + os.pathsep + env.get("PYTHONPATH", "")
+    
+    result = subprocess.run(cmd, text=True, env=env, cwd=str(PROJECT_ROOT))
     if result.returncode != 0:
         raise RuntimeError(f"[{name}] script hata ile döndü (exit={result.returncode})")
 
@@ -426,10 +440,11 @@ def main():
     """
     Tüm pipeline'ı sırasıyla çalıştırır.
     Bu script'i proje kökünden çalıştır:
-        python src/quanttrade/pipelines/run_daily_pipeline.py
+        python run_daily_pipeline.py
     """
     steps: List[Dict] = [
         # ---------------- DATA SOURCES ----------------
+         
         {
             "name": "MACRO_DOWNLOADER",
             "cmd": [PYTHON, "src/quanttrade/data_sources/macro_downloader.py"],
@@ -523,6 +538,11 @@ def main():
             "name": "MASTER_BUILDER",
             "cmd": [PYTHON, "src/quanttrade/feature_engineering/master_builder.py"],
             "validator": validate_master_df,
+        },
+        {
+            "name": "PARQUET_TO_CSV",
+            "cmd": [PYTHON, "src/quanttrade/data_sources/parquet_to_csv.py"],
+            
         },
     ]
 
