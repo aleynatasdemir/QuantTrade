@@ -19,13 +19,19 @@ from pathlib import Path
 from typing import List, Dict, Callable, Optional
 from datetime import datetime, timedelta
 
-# Add src to Python path for quanttrade imports
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
-
 import glob
 import pandas as pd
 
+# -------------------------------------------------------------------
+# Proje Kök Dizini ve PYTHONPATH
+# -------------------------------------------------------------------
+PROJECT_ROOT = Path(__file__).parent.resolve()
+SRC_PATH = PROJECT_ROOT / "src"
 
+# PYTHONPATH'e src ekle
+if str(SRC_PATH) not in sys.path:
+    sys.path.insert(0, str(SRC_PATH))
+os.environ["PYTHONPATH"] = str(SRC_PATH) + os.pathsep + os.environ.get("PYTHONPATH", "")
 
 # -------------------------------------------------------------------
 # Logging
@@ -417,7 +423,11 @@ def run_step(name: str, cmd: List[str], validator: StepValidator = None):
     logger.info("▶ STEP: %s", name)
     logger.info("   Komut: %s", " ".join(cmd))
 
-    result = subprocess.run(cmd, text=True)
+    # PYTHONPATH'i subprocess'e aktar
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(SRC_PATH) + os.pathsep + env.get("PYTHONPATH", "")
+    
+    result = subprocess.run(cmd, text=True, env=env, cwd=str(PROJECT_ROOT))
     if result.returncode != 0:
         raise RuntimeError(f"[{name}] script hata ile döndü (exit={result.returncode})")
 

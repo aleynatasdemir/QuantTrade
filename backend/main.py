@@ -4,11 +4,7 @@ FastAPI Main Application
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from config import settings
-<<<<<<< HEAD
-from api.routes import portfolio, pipeline, telegram
-=======
 from api.routes import portfolio, pipeline, telegram, gpt
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
 
 # Create FastAPI app
 app = FastAPI(
@@ -17,13 +13,14 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Configure CORS
+# Configure CORS - Allow all origins for development
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=["*"],
+    allow_credentials=False,  # Must be False when using "*" origins
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Include routers

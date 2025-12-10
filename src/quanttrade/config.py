@@ -107,6 +107,17 @@ def get_evds_settings() -> Dict:
     return evds
 
 
+def get_stocks_settings() -> Dict:
+    """
+    Hisse ile ilgili tüm ayarları getirir.
+    
+    Returns:
+        Dict: stocks ayarlarını içeren sözlük
+    """
+    settings = load_settings()
+    return settings.get("stocks", {})
+
+
 def get_stock_symbols() -> list:
     """
     BIST hisse sembolleri listesini config'den getirir.

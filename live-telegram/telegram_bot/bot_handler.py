@@ -5,6 +5,7 @@ Handles /start, /subscribe, /unsubscribe, /status, /trade commands
 import os
 import sys
 import subprocess
+import json
 from pathlib import Path
 from dotenv import load_dotenv
 import requests
@@ -14,7 +15,8 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 load_dotenv()
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
-BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://localhost:8000")
+# Docker'da backend service adı "backend", local'de localhost
+BACKEND_API_URL = os.getenv("BACKEND_API_URL", "http://backend:8000")
 
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -189,8 +191,8 @@ async def broadcast_message(context: ContextTypes.DEFAULT_TYPE, message: str):
 
 async def trade_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    /trade - Run portfolio analysis (Admin only)
-    Executes live_portfolio_manager.py and broadcasts summary to all subscribers
+    /trade - Show latest portfolio analysis (Admin only)
+    Reads cached summary from live_summary_telegram.json
     """
     chat_id = update.effective_chat.id
     
@@ -209,47 +211,47 @@ async def trade_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
     except Exception as e:
         print(f"Error checking permissions: {e}")
-        await update.message.reply_text("❌ Yetki kontrolünde hata")
+        await update.message.reply_text(f"❌ Yetki kontrolünde hata: {e}")
         return
     
-    await update.message.reply_text("🚀 Portfolio analizi başlatılıyor...")
-    
+    # Try to read cached summary
     try:
-        # Get portfolio script path
-        script_dir = Path(__file__).parent
-        project_root = script_dir.parent.parent
-        portfolio_script = project_root / "src" / "quanttrade" / "models_2.0" / "live_portfolio_v2.py"
+        # Possible paths for the summary file
+        possible_paths = [
+            Path("/app/src/quanttrade/models_2.0/live_summary_telegram.json"),  # Docker
+            Path(__file__).parent.parent.parent / "src" / "quanttrade" / "models_2.0" / "live_summary_telegram.json",  # Local
+        ]
         
-        if not portfolio_script.exists():
-            summary = f"❌ Portfolio manager script bulunamadı"
-            await broadcast_message(context, summary)
-            return
+        summary_data = None
+        for summary_path in possible_paths:
+            if summary_path.exists():
+                with open(summary_path, 'r', encoding='utf-8') as f:
+                    summary_data = json.load(f)
+                break
         
-        # Run live_portfolio_manager.py
-        result = subprocess.run(
-            [sys.executable, str(portfolio_script)],
-            cwd=str(portfolio_script.parent),
-            capture_output=True,
-            text=True,
-            timeout=300
-        )
-        
-        if result.returncode == 0:
-            # Success - send output
-            summary = f"✅ Live Portfolio Manager\n\n{result.stdout}"
+        if summary_data:
+            message = summary_data.get("message", "Özet bulunamadı")
+            timestamp = summary_data.get("timestamp", "N/A")
+            
+            # Send the cached summary
+            await update.message.reply_text(message, parse_mode='Markdown')
+            
+            # Broadcast to all active subscribers
+            await broadcast_message(context, message)
         else:
-            # Error
-            summary = f"❌ Portfolio Manager Hatası\n\n{result.stdout}"
-        
-        # Broadcast to all active subscribers
-        await broadcast_message(context, summary)
-        
-    except subprocess.TimeoutExpired:
-        summary = "❌ Portfolio analizi timeout (5 dakika+)"
-        await broadcast_message(context, summary)
+            await update.message.reply_text(
+                "❌ Günlük portfolio özeti bulunamadı.\n\n"
+                "Portfolio script henüz bugün çalışmamış olabilir.\n"
+                "Script her gün borsa kapandıktan sonra otomatik çalışır."
+            )
+            
+    except json.JSONDecodeError as e:
+        await update.message.reply_text(f"❌ Özet dosyası bozuk: {e}")
     except Exception as e:
-        summary = f"❌ Portfolio analizi başarısız: {str(e)}"
-        await broadcast_message(context, summary)
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Trade command error: {error_details}")
+        await update.message.reply_text(f"❌ Hata: {str(e)}")
 
 
 async def gpt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -257,82 +259,88 @@ async def gpt_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     
     try:
-        # Read latest GPT analysis from backend API
-        response = requests.get(
-            f"{BACKEND_API_URL}/api/gpt/analysis",
-            timeout=10
-        )
+        # Try to read GPT analysis from file (like trade_command)
+        possible_paths = [
+            Path("/app/src/quanttrade/models_2.0/gpt_analysis_latest.json"),  # Docker
+            Path(__file__).parent.parent.parent / "src" / "quanttrade" / "models_2.0" / "gpt_analysis_latest.json",  # Local
+        ]
         
-        if response.ok:
-            data = response.json()
-            
-            if not data.get("available"):
-                await update.message.reply_text(
-                    "❌ GPT analizi henüz mevcut değil.\n\n"
-                    "İlk analiz sabah 09:45'te çalışacak."
-                )
-                return
-            
-            analysis = data.get("data", {})
-            timestamp = analysis.get("timestamp", "N/A")
-            as_of_date = analysis.get("as_of_date", "N/A")
-            text = analysis.get("analysis", "")
-            
-            # Parse timestamp for display
-            try:
-                from datetime import datetime
-                dt = datetime.fromisoformat(timestamp)
-                time_str = dt.strftime("%d.%m.%Y %H:%M")
-            except:
-                time_str = timestamp
-            
-            # Telegram message limit is 4096 characters
-            MAX_LENGTH = 4000  # Leave some margin
-            
-            # Header message
-            header = f"""🤖 GPT Portfolio Analizi
+        gpt_data = None
+        for gpt_path in possible_paths:
+            if gpt_path.exists():
+                with open(gpt_path, 'r', encoding='utf-8') as f:
+                    gpt_data = json.load(f)
+                break
+        
+        if not gpt_data:
+            await update.message.reply_text(
+                "❌ GPT analiz dosyası bulunamadı.\n\n"
+                "GPT analizi henüz çalışmamış olabilir."
+            )
+            return
+        
+        timestamp = gpt_data.get("timestamp", "N/A")
+        as_of_date = gpt_data.get("as_of_date", "N/A")
+        analysis_text = gpt_data.get("analysis", "")
+        
+        # Clean markdown code blocks if present
+        if analysis_text.startswith("```"):
+            analysis_text = analysis_text.strip("`").strip()
+            if analysis_text.startswith("\n"):
+                analysis_text = analysis_text[1:]
+        
+        # Parse timestamp for display
+        try:
+            from datetime import datetime
+            dt = datetime.fromisoformat(timestamp)
+            time_str = dt.strftime("%d.%m.%Y %H:%M")
+        except:
+            time_str = timestamp
+        
+        # Telegram message limit is 4096 characters
+        MAX_LENGTH = 4000  # Leave some margin
+        
+        # Header message
+        header = f"""🤖 GPT Portfolio Analizi
 
 📅 Tarih: {as_of_date}
 🕒 Analiz: {time_str}
 """
+        
+        # Send header first
+        await update.message.reply_text(header)
+        
+        # Split analysis text into chunks if needed
+        if len(analysis_text) > MAX_LENGTH:
+            # Split into chunks
+            chunks = []
+            current_chunk = ""
             
-            # Send header first
-            await update.message.reply_text(header)
-            
-            # Split analysis text into chunks if needed
-            if len(text) > MAX_LENGTH:
-                # Split into chunks
-                chunks = []
-                current_chunk = ""
-                
-                for line in text.split('\n'):
-                    if len(current_chunk) + len(line) + 1 > MAX_LENGTH:
-                        chunks.append(current_chunk)
-                        current_chunk = line
-                    else:
-                        current_chunk += ('\n' if current_chunk else '') + line
-                
-                if current_chunk:
+            for line in analysis_text.split('\n'):
+                if len(current_chunk) + len(line) + 1 > MAX_LENGTH:
                     chunks.append(current_chunk)
-                
-                # Send each chunk
-                for i, chunk in enumerate(chunks, 1):
-                    part_msg = f"📄 Bölüm {i}/{len(chunks)}\n\n{chunk}"
-                    await update.message.reply_text(part_msg)
-            else:
-                # Single message
-                await update.message.reply_text(text)
+                    current_chunk = line
+                else:
+                    current_chunk += ('\n' if current_chunk else '') + line
+            
+            if current_chunk:
+                chunks.append(current_chunk)
+            
+            # Send each chunk
+            for i, chunk in enumerate(chunks, 1):
+                part_msg = f"📄 Bölüm {i}/{len(chunks)}\n\n{chunk}"
+                await update.message.reply_text(part_msg)
         else:
-            await update.message.reply_text(
-                f"❌ GPT analizi alınamadı.\n\n"
-                f"Backend yanıtı: {response.status_code}"
-            )
+            # Single message
+            await update.message.reply_text(analysis_text)
+            
+    except json.JSONDecodeError as e:
+        await update.message.reply_text(f"❌ GPT analiz dosyası bozuk: {e}")
     except Exception as e:
-        print(f"Error fetching GPT analysis: {e}")
-        await update.message.reply_text(
-            "❌ Backend'e bağlanılamadı.\n\n"
-            "Lütfen daha sonra tekrar deneyin."
-        )
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"GPT command error: {error_details}")
+        await update.message.reply_text(f"❌ Hata: {str(e)}")
 
 
 def main():
@@ -367,6 +375,11 @@ def main():
     
     # Start polling
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+
+async def start_bot():
+    """Async entry point for Docker/main.py"""
+    main()
 
 
 if __name__ == "__main__":

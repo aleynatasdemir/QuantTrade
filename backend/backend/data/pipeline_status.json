@@ -1,0 +1,9 @@
+{
+  "status": "failed",
+  "started_at": null,
+  "completed_at": "2025-12-09T22:01:14.046590",
+  "progress": null,
+  "error": "'NoneType' object has no attribute 'wait'",
+  "job_id": null,
+  "log_file_path": "/tmp/pipeline_pipeline_gmmt5zho.log"
+}

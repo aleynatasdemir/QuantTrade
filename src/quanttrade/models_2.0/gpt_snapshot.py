@@ -28,6 +28,8 @@ STOP_LOSS_PCT   = -0.05     # -%5
 PATIENCE_DAYS   = 8         # Dokunulmazlık süresi
 STAGNATION_DAYS = 10        # Durgunluk için bekleme süresi
 
+# KAP kategorileri (train ile aynı sırada)
+KAP_CATEGORIES = ["FINANSAL_RAPOR", "GENEL_BILGI", "ILISKILI_TARAF", "SERMAYE_TEMETTU", "UNKNOWN", "YATIRIM_SOZLESME"]
 TOP_K                = 10
 N_PRICE_DAYS         = 20
 N_RECENT_TRADES      = 15
@@ -109,6 +111,24 @@ def main():
     # --- Load master data ---
     df = pd.read_csv(DATA_PATH)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
+    
+    # Duplike satırları kaldır
+    df = df.drop_duplicates(subset=[DATE_COL, SYMBOL_COL], keep='last').reset_index(drop=True)
+    
+    # KAP one-hot encoding (train ile aynı)
+    if "kap_category" in df.columns:
+        for cat in KAP_CATEGORIES:
+            col_name = f"kap_cat_{cat}"
+            df[col_name] = (df["kap_category"] == cat).astype(int)
+    
+    # Eksik KAP kolonlarını 0 ile doldur
+    kap_numeric_cols = ["kap_sentiment", "kap_volatility", "kap_is_related_party", "kap_currency_impact"]
+    kap_cat_cols = [f"kap_cat_{cat}" for cat in KAP_CATEGORIES]
+    all_kap_cols = kap_numeric_cols + kap_cat_cols
+    
+    for col in all_kap_cols:
+        if col not in df.columns:
+            df[col] = 0
     
     # Geleceği görme (Lookahead) engelleme
     df = df[df[DATE_COL] <= last_date].copy()

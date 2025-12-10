@@ -144,14 +144,6 @@ class PipelineService:
         
         # Start the process
         try:
-<<<<<<< HEAD
-            print(f"[PipelineService] Starting subprocess...")
-            print(f"[PipelineService] Python: {sys.executable}")
-            print(f"[PipelineService] Script: {script_path}")
-            print(f"[PipelineService] CWD: {self.project_root}")
-            
-            # Run in project root directory
-=======
             # Determine working directory based on script type
             if script_type == "portfolio_manager":
                 # Portfolio manager needs to run from its own directory (where models are)
@@ -165,14 +157,18 @@ class PipelineService:
 
             # Environment variables hazırla
             env = os.environ.copy()
-            env['PYTHONPATH'] = '/root/Quanttrade/src:' + env.get('PYTHONPATH', '')
+            env['PYTHONPATH'] = str(self.project_root / 'src') + os.pathsep + env.get('PYTHONPATH', '')
 
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
+            print(f"[PipelineService] Starting subprocess...")
+            print(f"[PipelineService] Python: {sys.executable}")
+            print(f"[PipelineService] Script: {script_path}")
+            print(f"[PipelineService] CWD: {cwd}")
+
             self.current_process = await asyncio.create_subprocess_exec(
                 sys.executable,
                 str(script_path),
                 cwd=cwd,
-                env=env,  # ← ENV EKLE
+                env=env,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE
             )

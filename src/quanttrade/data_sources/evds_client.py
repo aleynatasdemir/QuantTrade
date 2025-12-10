@@ -330,9 +330,7 @@ class EVDSClient:
             try:
                 freq = series_frequencies.get(evds_code, 1)
                 
-=======
-                # Veri çek
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
+
                 df_series = self.fetch_series(
                     series_codes=evds_code,
                     start_date=actual_start_date,
@@ -350,7 +348,7 @@ class EVDSClient:
                     df_series = df_series.iloc[:, 0:1]
                     df_series.columns = [friendly_name]
                 
-<<<<<<< HEAD
+
                 df_new = df_new.join(df_series, how='left')
                 logger.info(f"✓ {friendly_name}: {len(df_series)} satır eklendi")
                 

@@ -1,33 +1,13 @@
 {
-  "cash": 3346.029939200002,
+  "cash": 9117.266937200002,
   "positions": [
-    {
-      "symbol": "INDES",
-      "entry_price": 7.5,
-      "shares": 400,
-      "entry_date": "2025-11-25",
-      "days_held": 9,
-      "current_price": 7.24,
-      "exit_planned": false,
-      "exit_reason_planned": null
-    },
     {
       "symbol": "GWIND",
       "entry_price": 23.0,
       "shares": 131,
       "entry_date": "2025-11-25",
-      "days_held": 9,
-      "current_price": 23.36,
-      "exit_planned": false,
-      "exit_reason_planned": null
-    },
-    {
-      "symbol": "HUNER",
-      "entry_price": 3.48,
-      "shares": 862,
-      "entry_date": "2025-11-25",
-      "days_held": 9,
-      "current_price": 3.4,
+      "days_held": 11,
+      "current_price": 23.4,
       "exit_planned": false,
       "exit_reason_planned": null
     },
@@ -36,18 +16,28 @@
       "entry_price": 56.574,
       "shares": 50,
       "entry_date": "2025-12-01",
-      "days_held": 5,
+      "days_held": 7,
       "exit_planned": false,
       "exit_reason_planned": null,
-      "current_price": 55.7
+      "current_price": 56.7
     }
   ],
   "pending_buys": [
     {
+      "symbol": "GOODY",
+      "planned_capital": 3039.0889790666674,
+      "decision_date": "2025-12-09"
+    },
+    {
+      "symbol": "OZKGY",
+      "planned_capital": 3039.0889790666674,
+      "decision_date": "2025-12-09"
+    },
+    {
       "symbol": "TCELL",
-      "planned_capital": 3346.029939200002,
-      "decision_date": "2025-12-05"
+      "planned_capital": 3039.0889790666674,
+      "decision_date": "2025-12-09"
     }
   ],
-  "last_date": "2025-12-05"
+  "last_date": "2025-12-09"
 }

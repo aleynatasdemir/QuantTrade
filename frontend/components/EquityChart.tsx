@@ -21,9 +21,17 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 };
 
 export const EquityChart: React.FC<EquityChartProps> = ({ data }) => {
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-[350px] w-full flex items-center justify-center text-zinc-500">
+        No equity data available
+      </div>
+    );
+  }
+  
   return (
-    <div className="h-[350px] w-full">
-      <ResponsiveContainer width="100%" height="100%">
+    <div className="h-[350px] w-full min-h-[350px]" style={{ minWidth: '300px' }}>
+      <ResponsiveContainer width="100%" height={350}>
         <AreaChart
           data={data}
           margin={{

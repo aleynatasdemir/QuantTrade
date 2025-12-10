@@ -58,7 +58,6 @@ logging.info(f"{len(symbols)} adet sembol bulundu (config'ten yüklendi).")
 # Proje kök dizinine göre ayarla
 BASE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "data" / "raw"
 
-<<<<<<< HEAD
 
 def get_last_business_day(date: datetime = None) -> datetime:
     """Haftasonu ise Cuma'ya geri gider."""
@@ -70,14 +69,10 @@ def get_last_business_day(date: datetime = None) -> datetime:
     return date
 
 
-# Config'ten tarih aralığını oku
-start_date_str = config.get("stocks", {}).get("start_date", "2020-01-01")
-# end_date otomatik olarak son iş günü
+# Config'ten tarih aralığını oku - end_date otomatik olarak son iş günü
 end_date = get_last_business_day()
 end_date_str = end_date.strftime("%Y-%m-%d")
 
-=======
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
 # Tarih aralığını parse et (YYYY-MM-DD formatında)
 start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
 

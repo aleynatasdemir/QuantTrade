@@ -1,0 +1,78 @@
+# Local Development - docker-compose.dev.yml
+# Usage: docker-compose -f docker-compose.dev.yml up -d
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: quanttrade-db-dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: quanttrade
+      POSTGRES_PASSWORD: quanttrade123
+      POSTGRES_DB: quanttrade
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U quanttrade"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API (FastAPI) - with hot reload
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: quanttrade-backend-dev
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgresql://quanttrade:quanttrade123@db:5432/quanttrade
+      - DEBUG=True
+      # Override Windows paths for Docker
+      - LIVE_STATE_PATH=src/quanttrade/models_2.0/live_state_T1.json
+      - LIVE_EQUITY_PATH=src/quanttrade/models_2.0/live_equity_T1.csv
+      - LIVE_TRADES_PATH=src/quanttrade/models_2.0/live_trades_T1.csv
+      - PROJECT_ROOT=.
+      - PYTHONPATH=/app/src:/app
+    env_file:
+      - .env
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./src:/app/src
+      - ./config:/app/config
+      - ./run_daily_prices.py:/app/run_daily_prices.py
+      - ./run_daily_pipeline.py:/app/run_daily_pipeline.py
+      - ./kap_parser.py:/app/kap_parser.py
+      - ./.env:/app/.env
+    ports:
+      - "8000:8000"
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Frontend (Vite dev server)
+  frontend:
+    image: node:20-alpine
+    container_name: quanttrade-frontend-dev
+    working_dir: /app
+    restart: unless-stopped
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data_dev:

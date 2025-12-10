@@ -235,6 +235,9 @@ def main():
     print(">> Loading data...")
     df = pd.read_csv(DATA_PATH)
     df[DATE_COL] = pd.to_datetime(df[DATE_COL])
+    
+    # Duplike satırları kaldır (aynı tarih+sembol için sadece son kaydı tut)
+    df = df.drop_duplicates(subset=[DATE_COL, SYMBOL_COL], keep='last').reset_index(drop=True)
 
     # KAP one-hot encoding (train ile aynı)
     if "kap_category" in df.columns:
@@ -597,11 +600,14 @@ def main():
     # 2) REFERANS GÜN İÇİN YARININ ALIM ÖNERİLERİ
     # ============================
 
-    # Halihazırda elde bulunan semboller
-    current_syms = {p["symbol"] for p in positions}
+    # Halihazırda elde bulunan semboller (YARIN satılacaklar HARİÇ)
+    current_syms = {p["symbol"] for p in positions if not p.get("exit_planned", False)}
+    # Yarın satılacak semboller
+    exiting_syms = {p["symbol"] for p in positions if p.get("exit_planned", False)}
     # Zaten pending'de olanlar
     pending_syms = {o["symbol"] for o in pending_buys}
 
+    # Yarın satılacak pozisyonlar slot açacak, onları sayma
     used_slots = len(current_syms.union(pending_syms))
     free_slots = max(0, MAX_POSITIONS - used_slots)
 
@@ -730,8 +736,17 @@ def main():
                 f"tahmini sermaye ~ {s['planned_capital']:,.0f} TL"
             )
         print("\nNot: Bunlar yarın sabah açılışa 'piyasa' veya 'makul limit' ile alman gerekenler.")
+    elif pending_buys:
+        # Yeni ekleme yok ama önceden planlanmış alımlar var
+        print("\n=== YARIN İÇİN PLANLANMIŞ ALIMLAR (T+1) ===")
+        for order in pending_buys:
+            print(
+                f"  {order['symbol']}: tahmini sermaye ~ {order['planned_capital']:,.0f} TL "
+                f"(karar tarihi: {order['decision_date']})"
+            )
+        print("\nNot: Bunlar yarın sabah açılışa 'piyasa' veya 'makul limit' ile alman gerekenler.")
     else:
-        print("\nYarın için yeni alım önerisi yok (slot yok veya uygun aday yok).")
+        print("\nYarın için alım önerisi yok (slot yok veya uygun aday yok).")
 
 
 if __name__ == "__main__":

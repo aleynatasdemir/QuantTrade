@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     # Backend Server
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
+    
+    # Debug mode
+    debug: bool = False
     # CORS
     cors_origins: str = "http://localhost:5173,http://localhost:3000,http://localhost:3001"
     
@@ -49,6 +52,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"  # Ignore extra fields from .env
     
     @property
     def cors_origins_list(self) -> List[str]:
@@ -58,7 +62,16 @@ class Settings(BaseSettings):
     def get_absolute_path(self, relative_path: str) -> Path:
         """Convert relative path to absolute path from project root"""
         backend_dir = Path(__file__).parent
-        project_root_dir = backend_dir / self.project_root
+        
+        # Docker container'da /app içinde src volume mount edilmiş
+        # Local'de ise backend bir üst klasörde
+        if (backend_dir / "src").exists():
+            # Docker: backend içinde src var
+            project_root_dir = backend_dir
+        else:
+            # Local: backend'in parent'ı project root
+            project_root_dir = backend_dir / self.project_root
+        
         return (project_root_dir / relative_path).resolve()
 
 

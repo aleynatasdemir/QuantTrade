@@ -342,8 +342,8 @@ function App() {
                   <p className="text-sm text-zinc-500">Projected Post-Execution</p>
                 </div>
 
-                <div className="flex-1 min-h-[250px] relative">
-                  <ResponsiveContainer width="100%" height="100%">
+                <div className="flex-1 min-h-[250px] relative" style={{ minWidth: '200px' }}>
+                  <ResponsiveContainer width="100%" height={250}>
                     <PieChart>
                       <Pie
                         data={allocationData}

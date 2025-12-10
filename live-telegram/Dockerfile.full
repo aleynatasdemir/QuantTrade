@@ -1,0 +1,34 @@
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# System dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install requirements
+COPY live-telegram/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Install additional dependencies for model
+RUN pip install --no-cache-dir catboost joblib matplotlib httpx
+
+# Copy telegram bot code
+COPY live-telegram/ /app/live-telegram/
+
+# Copy src for quanttrade module
+COPY src/ /app/src/
+
+# Copy backend data (for subscribers.json access)
+COPY backend/data/ /app/backend/data/
+
+# Set Python path
+ENV PYTHONPATH=/app:/app/src:/app/live-telegram
+
+WORKDIR /app/live-telegram
+
+# Run bot_handler directly
+CMD ["python", "-m", "telegram_bot.bot_handler"]
+

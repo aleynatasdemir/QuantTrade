@@ -1,31 +1,28 @@
 """
 Telegram Bot Service - Manage Telegram bot and subscribers
+Uses httpx for direct Telegram API calls (more reliable than python-telegram-bot for FastAPI)
 """
 import json
+import httpx
 from pathlib import Path
 from typing import List, Optional, Dict
 from pydantic import BaseModel
 from datetime import datetime
-from telegram import Bot
-from telegram.error import TelegramError
-<<<<<<< HEAD
 from config import settings
 from models.schemas import (
-    TelegramConfig, 
-=======
-from backend.config import settings
-from backend.models.schemas import (
->>>>>>> f253addf5f28e99f0d3a026638901b029d9ebe09
     TelegramSubscriber, 
     TelegramSubscriberCreate,
     BroadcastMessage
 )
 
+# Telegram API Base URL
+TELEGRAM_API_URL = "https://api.telegram.org"
+
 
 class TelegramConfig(BaseModel):
     bot_token: Optional[str] = None  # Made optional
     bot_username: str = "@quant_alpha_bot"
-    test_mode: bool = True
+    test_mode: bool = False  # Changed default to False for production use
 
 
 class TelegramService:
@@ -35,19 +32,18 @@ class TelegramService:
         self.subscribers_path = settings.get_absolute_path(settings.subscribers_db_path)
         self.subscribers_path.parent.mkdir(parents=True, exist_ok=True)
         
-        self.bot: Optional[Bot] = None
+        self.bot_token: Optional[str] = settings.telegram_bot_token
         self.config = TelegramConfig(
             bot_token=settings.telegram_bot_token,
             bot_username=settings.telegram_bot_username,
-            test_mode=True
+            test_mode=False  # Default to production mode
         )
         
-        # Initialize bot if token is available
-        if settings.telegram_bot_token:
-            try:
-                self.bot = Bot(token=settings.telegram_bot_token)
-            except Exception as e:
-                print(f"Failed to initialize Telegram bot: {e}")
+        # Validate bot token on init
+        if self.bot_token:
+            print(f"✅ Telegram Bot Token loaded (ends with ...{self.bot_token[-8:]})")
+        else:
+            print("⚠️ No Telegram Bot Token found in environment")
         
         # Load subscribers
         self._load_subscribers()
@@ -151,10 +147,37 @@ class TelegramService:
         
         return False
     
+    async def _send_telegram_message(self, chat_id: str, text: str) -> Dict[str, any]:
+        """Send message via Telegram API using httpx"""
+        if not self.bot_token:
+            return {"ok": False, "error": "No bot token configured"}
+        
+        url = f"{TELEGRAM_API_URL}/bot{self.bot_token}/sendMessage"
+        payload = {
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "Markdown"
+        }
+        
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(url, json=payload)
+                result = response.json()
+                
+                if result.get("ok"):
+                    return {"ok": True, "message_id": result.get("result", {}).get("message_id")}
+                else:
+                    error_desc = result.get("description", "Unknown error")
+                    print(f"Telegram API error: {error_desc}")
+                    return {"ok": False, "error": error_desc}
+        except Exception as e:
+            print(f"HTTP error sending to Telegram: {e}")
+            return {"ok": False, "error": str(e)}
+    
     async def send_message(self, chat_id: str, message: str) -> Dict[str, str]:
         """Send a message to a specific chat"""
-        if not self.bot:
-            return {"status": "error", "message": "Bot not initialized"}
+        if not self.bot_token:
+            return {"status": "error", "message": "Bot token not configured"}
         
         if self.config.test_mode:
             return {
@@ -162,18 +185,19 @@ class TelegramService:
                 "message": f"[TEST MODE] Would send to {chat_id}: {message}"
             }
         
-        try:
-            await self.bot.send_message(chat_id=chat_id, text=message)
+        result = await self._send_telegram_message(chat_id, message)
+        
+        if result.get("ok"):
             return {"status": "success", "message": "Message sent"}
-        except TelegramError as e:
-            return {"status": "error", "message": str(e)}
+        else:
+            return {"status": "error", "message": result.get("error", "Unknown error")}
     
     async def broadcast_message(self, broadcast: BroadcastMessage) -> Dict[str, any]:
         """Broadcast a message to all active subscribers"""
-        if not self.bot:
+        if not self.bot_token:
             return {
                 "status": "error",
-                "message": "Bot not initialized",
+                "message": "Bot token not configured",
                 "sent": 0,
                 "failed": 0
             }
@@ -183,6 +207,14 @@ class TelegramService:
         
         # Get active subscribers
         active_subscribers = [sub for sub in self.subscribers if sub.active]
+        
+        if not active_subscribers:
+            return {
+                "status": "warning",
+                "message": "No active subscribers to broadcast to",
+                "sent": 0,
+                "failed": 0
+            }
         
         if self.config.test_mode:
             # Log message to history even in test mode
@@ -198,22 +230,31 @@ class TelegramService:
         # Send to all active subscribers
         sent = 0
         failed = 0
+        errors = []
         
         for sub in active_subscribers:
-            try:
-                await self.bot.send_message(chat_id=sub.chat_id, text=message)
+            result = await self._send_telegram_message(sub.chat_id, message)
+            
+            if result.get("ok"):
                 sent += 1
-            except TelegramError as e:
-                print(f"Failed to send to {sub.name} ({sub.chat_id}): {e}")
+                print(f"✅ Sent to {sub.name} ({sub.chat_id})")
+            else:
                 failed += 1
+                error_msg = result.get("error", "Unknown error")
+                errors.append(f"{sub.name}: {error_msg}")
+                print(f"❌ Failed to send to {sub.name} ({sub.chat_id}): {error_msg}")
         
         # Log successful broadcast to history
         if sent > 0:
             self._log_message_to_history(broadcast)
         
+        status_msg = f"Broadcast completed: {sent} sent, {failed} failed"
+        if errors:
+            status_msg += f"\nErrors: {'; '.join(errors[:3])}"  # Show first 3 errors
+        
         return {
-            "status": "success",
-            "message": f"Broadcast completed: {sent} sent, {failed} failed",
+            "status": "success" if sent > 0 else "error",
+            "message": status_msg,
             "sent": sent,
             "failed": failed
         }

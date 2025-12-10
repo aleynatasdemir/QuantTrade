@@ -4,7 +4,10 @@ from datetime import datetime
 from openai import OpenAI
 from dotenv import load_dotenv
 
-load_dotenv()
+# .env dosyasını proje kökünden yükle
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "..", ".."))
+load_dotenv(os.path.join(PROJECT_ROOT, ".env"))
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 

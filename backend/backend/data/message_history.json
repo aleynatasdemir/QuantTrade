@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "deneme",
+    "timestamp": "21:36",
+    "date": "2025-12-09",
+    "status": "SENT"
+  },
+  {
+    "id": 2,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "deneme",
+    "timestamp": "22:01",
+    "date": "2025-12-09",
+    "status": "SENT"
+  },
+  {
+    "id": 3,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "deneme",
+    "timestamp": "22:03",
+    "date": "2025-12-09",
+    "status": "SENT"
+  },
+  {
+    "id": 4,
+    "type": "INFO",
+    "symbol": "SYSTEM",
+    "price": 0,
+    "message": "deneme",
+    "timestamp": "22:07",
+    "date": "2025-12-09",
+    "status": "SENT"
+  }
+]

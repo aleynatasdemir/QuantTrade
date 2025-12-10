@@ -115,15 +115,18 @@ def get_incremental_range_for_symbol(
         return config_start_date, config_end_date, False
     
     try:
-        # Index'li CSV'yi oku (date index olarak kaydedilmiş)
-        df = pd.read_csv(file_path, index_col=0, parse_dates=True)
+        # CSV'yi oku
+        df = pd.read_csv(file_path)
         
         if df.empty:
             logger.info(f"{symbol}: Dosya boş, full çekim yapılacak")
             return config_start_date, config_end_date, False
         
-        # Index'ten son tarihi al
-        last_date = df.index.max()
+        # date kolonunu datetime'a çevir
+        df['date'] = pd.to_datetime(df['date'], errors='coerce')
+        
+        # date kolonundan son tarihi al
+        last_date = df['date'].max()
         
         if pd.isna(last_date):
             return config_start_date, config_end_date, False
@@ -166,10 +169,9 @@ def fetch_ohlcv_incremental(
     old_df = pd.DataFrame()
     if file_path.exists():
         try:
-            old_df = pd.read_csv(file_path, index_col=0, parse_dates=True)
-            old_df = old_df.reset_index()
-            if old_df.columns[0] != 'date':
-                old_df.rename(columns={old_df.columns[0]: 'date'}, inplace=True)
+            old_df = pd.read_csv(file_path)
+            if 'date' in old_df.columns:
+                old_df['date'] = pd.to_datetime(old_df['date'], errors='coerce')
         except Exception as e:
             logger.warning(f"{symbol}: Mevcut dosya okunamadı: {e}")
             old_df = pd.DataFrame()

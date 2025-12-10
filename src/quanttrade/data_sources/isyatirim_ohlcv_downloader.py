@@ -21,9 +21,11 @@ import logging
 from pathlib import Path
 from datetime import datetime
 
-# Proje kök dizinini Python path'e ekle
+# Proje kök dizinini ve src'yi Python path'e ekle
 project_root = Path(__file__).parent.parent.parent.parent
-sys.path.insert(0, str(project_root))
+src_path = project_root / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 from quanttrade.data_sources.isyatirim_ohlcv import fetch_ohlcv_from_isyatirim
 from quanttrade.config import ROOT_DIR, get_stock_symbols, get_stock_date_range
